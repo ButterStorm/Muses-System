@@ -21,7 +21,7 @@ const TextNode = ({ data, id, selected }: NodeProps) => {
   const handleContentChange = (newContent: string) => {
     setOutput(newContent);
     if (data.onChange) {
-      data.onChange(id, { ...nodeData, output: newContent });
+      (data as any).onChange(id, { ...nodeData, output: newContent });
     }
   };
 
