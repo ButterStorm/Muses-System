@@ -113,6 +113,7 @@ const FlowCanvas: React.FC = () => {
       ...(base as Node),
       data,
       ...(type === 'textInputNode' ? { style: { width: 288, height: 120 } } : {}),
+      ...(type === 'textNode' ? { style: { width: 288, height: 150 } } : {}),
     };
     setNodes((nds) => [...nds, newNode]);
   };

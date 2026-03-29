@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
-import { ArrowRight, Globe } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ArrowRight, Globe, User, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useScrollAnimation } from '@/hooks/useScrollAnimation';
+import { useAuthStore } from '@/stores/authStore';
 import ColorBends from '@/components/ColorBends';
 import Galaxy from '@/components/Galaxy';
 
@@ -70,6 +71,82 @@ const translations = {
   }
 };
 
+const UserNav: React.FC = () => {
+  const { user, isAuthenticated, isLoading, signOut, checkAuth } = useAuthStore();
+  const [isOpen, setIsOpen] = useState(false);
+
+  useEffect(() => {
+    checkAuth();
+  }, [checkAuth]);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center w-8 h-8">
+        <Loader2 className="w-4 h-4 text-gray-400 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="flex items-center gap-2">
+        <Link
+          href="/login"
+          className="text-gray-300 hover:text-white transition-colors text-sm font-medium"
+        >
+          登录
+        </Link>
+        <Link
+          href="/login"
+          className="bg-white text-black px-5 py-2 rounded-full font-medium hover:bg-gray-100 transition-colors text-sm"
+        >
+          注册
+        </Link>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center gap-2 text-gray-300 hover:text-white transition-colors"
+      >
+        <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white text-sm font-bold">
+          {user?.email?.[0].toUpperCase() || 'U'}
+        </div>
+      </button>
+
+      {isOpen && (
+        <>
+          <div
+            className="fixed inset-0 z-40"
+            onClick={() => setIsOpen(false)}
+          />
+          <div className="absolute right-0 top-full mt-2 w-40 bg-white rounded-xl shadow-lg border border-gray-200 py-2 z-50">
+            <Link
+              href="/canvas"
+              className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+              onClick={() => setIsOpen(false)}
+            >
+              我的画布
+            </Link>
+            <button
+              onClick={() => {
+                signOut();
+                setIsOpen(false);
+              }}
+              className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+            >
+              退出登录
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
 const LandingPage: React.FC = () => {
   const [lang, setLang] = useState<'en' | 'zh'>('en');
   const t = translations[lang];
@@ -106,12 +183,7 @@ const LandingPage: React.FC = () => {
             </button>
           </nav>
 
-          <Link
-            href="/canvas"
-            className="bg-white text-black px-5 py-2 rounded-full font-medium hover:bg-gray-100 transition-colors text-sm"
-          >
-            {t.nav.login}
-          </Link>
+          <UserNav />
         </div>
       </header>
 
@@ -184,9 +256,11 @@ const LandingPage: React.FC = () => {
                 className={`bg-gray-900 rounded-2xl overflow-hidden group hover:bg-gray-800 transition-colors animate-on-scroll animate-fade-up ${project1.isVisible ? 'animated' : ''}`}
               >
                 <div className="aspect-video relative overflow-hidden">
-                  <div className="w-full h-full bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center">
-                    <span className="text-6xl">📝</span>
-                  </div>
+                  <img
+                    src="/Script.jpg"
+                    alt="Script Generation"
+                    className="w-full h-full object-cover"
+                  />
                   <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-transparent to-transparent opacity-60"></div>
                 </div>
                 <div className="p-8">
@@ -206,9 +280,11 @@ const LandingPage: React.FC = () => {
                 className={`bg-gray-900 rounded-2xl overflow-hidden group hover:bg-gray-800 transition-colors animate-on-scroll animate-fade-up delay-100 ${project2.isVisible ? 'animated' : ''}`}
               >
                 <div className="aspect-video relative overflow-hidden">
-                  <div className="w-full h-full bg-gradient-to-br from-green-500/20 to-blue-500/20 flex items-center justify-center">
-                    <span className="text-6xl">🎨</span>
-                  </div>
+                  <img
+                    src="/Canvas.jpg"
+                    alt="Creative Design Canvas"
+                    className="w-full h-full object-cover"
+                  />
                   <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-transparent to-transparent opacity-60"></div>
                 </div>
                 <div className="p-8">
@@ -239,9 +315,11 @@ const LandingPage: React.FC = () => {
                     </button>
                   </div>
                   <div className="flex-1 aspect-video lg:aspect-auto relative overflow-hidden">
-                    <div className="w-full h-full bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center">
-                      <span className="text-6xl">🎬</span>
-                    </div>
+                    <img
+                      src="/Video.jpg"
+                      alt="Cinematic Video Production"
+                      className="w-full h-full object-cover"
+                    />
                     <div className="absolute inset-0 bg-gradient-to-l from-gray-900 via-transparent to-transparent lg:bg-gradient-to-t opacity-60"></div>
                   </div>
                 </div>

@@ -2,6 +2,8 @@
 
 import React from 'react';
 import { Plus } from 'lucide-react';
+import Link from 'next/link';
+import UserMenu from './UserMenu';
 
 interface ToolbarProps {
   onAddNode: (type: string, label: string) => void;
@@ -22,14 +24,14 @@ const Toolbar: React.FC<ToolbarProps> = ({ onAddNode }) => {
 
   return (
     <div className="bg-white/80 backdrop-blur-md shadow-sm p-3 flex items-center justify-between border-b border-gray-100 px-8 sticky top-0 z-[100]">
-      <div className="flex items-center space-x-3">
-        <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-lg shadow-blue-100 overflow-hidden border border-gray-100">
+      <Link href="/" className="flex items-center space-x-3 group cursor-pointer">
+        <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-lg shadow-blue-100 overflow-hidden border border-gray-100 group-hover:shadow-blue-200 transition-shadow">
           <img src="/bs_logo.jpeg" alt="Logo" className="w-full h-full object-cover" />
         </div>
         <div>
-          <h2 className="text-sm font-black text-gray-900 tracking-tight leading-none">MusesSystem</h2>
+          <h2 className="text-sm font-black text-gray-900 tracking-tight leading-none group-hover:text-blue-600 transition-colors">MusesSystem</h2>
         </div>
-      </div>
+      </Link>
 
       <div className="flex items-center space-x-3">
         <div className="flex bg-gray-100 p-1 rounded-xl space-x-1 mr-4">
@@ -57,15 +59,9 @@ const Toolbar: React.FC<ToolbarProps> = ({ onAddNode }) => {
           <span className="text-sm font-bold">新生成节点</span>
         </button>
 
-        <div className="h-8 w-px bg-gray-100 mx-2" />
+        <div className="h-8 w-px bg-gray-200 mx-2" />
 
-        <div className="flex -space-x-2">
-          {[1, 2, 3, 4].map(i => (
-            <div key={i} className="w-8 h-8 rounded-full border-2 border-white bg-gray-200 overflow-hidden">
-              <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${i}`} alt="avatar" />
-            </div>
-          ))}
-        </div>
+        <UserMenu />
       </div>
     </div>
   );

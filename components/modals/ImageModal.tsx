@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { X, Download } from 'lucide-react';
 
 interface ImageModalProps {
@@ -31,40 +32,41 @@ const ImageModal: React.FC<ImageModalProps> = ({ isOpen, onClose, imageUrl, titl
     }
   };
 
-  return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[200] p-8">
-      <div className="bg-white shadow-2xl w-full max-w-4xl h-full max-h-[80vh] flex flex-col rounded-3xl overflow-hidden border border-white/20">
+  return createPortal(
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[99999] p-4 sm:p-6 md:p-8">
+      <div className="bg-white shadow-2xl w-full max-w-5xl h-[90vh] flex flex-col rounded-3xl overflow-hidden border border-white/20">
         <div className="flex items-center justify-between p-4 border-b border-gray-100">
-          <h2 className="text-lg font-bold text-gray-900 px-2">{title}</h2>
-          <div className="flex items-center gap-3 pr-2">
+          <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
+          <div className="flex items-center gap-2">
             <button
               onClick={handleDownload}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-bold bg-gray-900 text-white rounded-xl hover:bg-black transition-all active:scale-95 shadow-lg shadow-gray-200"
+              className="px-4 py-1.5 text-sm bg-slate-800 text-white rounded-full hover:bg-slate-900 transition-all duration-200 shadow-sm flex items-center gap-1.5"
             >
-              <Download size={16} />
+              <Download size={14} />
               <span>下载</span>
             </button>
             <button
               onClick={onClose}
-              className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl transition-all"
+              className="p-1.5 text-gray-400 hover:text-gray-600 transition-colors"
             >
               <X size={20} />
             </button>
           </div>
         </div>
 
-        <div className="flex-1 overflow-hidden bg-gray-50/50 relative group">
+        <div className="flex-1 overflow-hidden bg-gray-50 relative">
           <div className="w-full h-full flex items-center justify-center p-6">
             <img
               src={imageUrl}
               alt="生成的图片"
-              className="max-w-full max-h-full object-contain rounded-xl shadow-sm transition-transform duration-500"
+              className="max-w-full max-h-full object-contain rounded-xl shadow-lg"
             />
           </div>
         </div>
 
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

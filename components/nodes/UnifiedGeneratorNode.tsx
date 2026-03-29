@@ -57,8 +57,8 @@ const TYPE_CONFIG: Record<NodeType, { label: string; color: string; classes: { b
 };
 
 const MODELS = {
-    text: ['gpt-5-mini', 'gemini-3-pro-preview', 'deepseek-chat', 'kimi-k2.5', 'doubao-seed-1-8-251228'],
-    image: ['doubao-seedream-4-0-250828', 'gemini-2.5-flash-image', 'gemini-3-pro-image-preview', 'stable-diffusion-xl'],
+    text: ['gpt-5-mini', 'deepseek-chat', 'kimi-k2.5', 'doubao-seed-1-8-251228'],
+    image: ['doubao-seedream-4-0-250828'],
     video: ['kling', 'sora-2', 'doubao'],
     audio: ['speech-2.6-hd', 'openai-tts-1'],
     music: ['chirp-v5'],
@@ -191,6 +191,7 @@ const UnifiedGeneratorNode = ({ id, data }: NodeProps) => {
                         type: newNodeType,
                         position,
                         data: newNodeData,
+                        ...(newNodeType === 'textNode' ? { style: { width: 288, height: 150 } } : {}),
                     });
 
                     addEdges({
