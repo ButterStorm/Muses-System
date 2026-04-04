@@ -156,7 +156,7 @@ const UnifiedGeneratorNode = ({ id, data }: NodeProps) => {
                         if (nodeData.model === 'kling') {
                             generationResults = await generateVideoKling(promptToUse, nodeData.duration as 5 | 10, '9:16', latestImageUrl || undefined);
                         } else {
-                            generationResults = await generateVideoDoubao(promptToUse, '16:9', latestImageUrl || undefined);
+                            generationResults = await generateVideoDoubao(promptToUse, '16:9', latestImageUrl || undefined, nodeData.duration as 5 | 10);
                         }
                         break;
                     case 'audio':
@@ -302,7 +302,6 @@ const UnifiedGeneratorNode = ({ id, data }: NodeProps) => {
                             >
                                 <option value={5}>5秒</option>
                                 <option value={10}>10秒</option>
-                                <option value={15}>15秒</option>
                             </select>
                             <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                         </div>

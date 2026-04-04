@@ -189,7 +189,8 @@ const extractKlingVideoUrl = (data: any): string | null => {
 export const generateVideoDoubao = async (
   prompt: string,
   ratio: '16:9' | '9:16' | '1:1' = '16:9',
-  imageUrl?: string
+  imageUrl?: string,
+  duration: 5 | 10 = 5
 ): Promise<string> => {
   ensureKey();
   try {
@@ -209,7 +210,7 @@ export const generateVideoDoubao = async (
       generate_audio: true,
       resolution: '1080p',
       ratio,
-      duration: 5,
+      duration,
       seed: -1,
       camera_fixed: false,
       watermark: false,
