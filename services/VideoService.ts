@@ -7,7 +7,7 @@ const getBearerAuth = () => {
   return key.startsWith('Bearer ') ? key : `Bearer ${key}`;
 };
 
-const getJsonHeaders = () => ({
+const getHeaders = () => ({
   'Authorization': getBearerAuth(),
   'Content-Type': 'application/json',
 });
@@ -18,146 +18,301 @@ const ensureKey = (): void => {
   }
 };
 
-const requestWithRetry = async (fn: () => Promise<any>, retries = 3) => {
-  let lastError;
-  for (let i = 0; i < retries; i++) {
-    try {
-      return await fn();
-    } catch (error: any) {
-      lastError = error;
-      const status = error.response?.status;
-      if ((status === 503 || !error.response) && i < retries - 1) {
-        const delay = Math.pow(2, i) * 1000;
-        await new Promise(r => setTimeout(r, delay));
-        continue;
-      }
-      throw error;
-    }
-  }
-  throw lastError;
-};
+// ═══════════════════════════════════════════════════════════════
+// 可灵视频生成（responses 接口）
+// 文档：kling-video.md
+// ═══════════════════════════════════════════════════════════════
 
 export const generateVideoKling = async (
   prompt: string,
   duration: 5 | 10 = 5,
-  aspectRatio: '9:16' | '16:9' | '1:1' = '9:16'
+  aspectRatio: '9:16' | '16:9' | '1:1' = '9:16',
+  imageUrl?: string
 ): Promise<string> => {
   ensureKey();
   try {
-    const create = await requestWithRetry(() => axios.post('https://www.dmxapi.cn/kling/v1/videos/text2video', {
-      model_name: 'kling-v1-6',
-      mode: 'std',
-      prompt,
+    const isImage2Video = !!imageUrl;
+    const model = isImage2Video ? 'kling-v2-6-image2video' : 'kling-v2-6-text2video';
+
+    // 可灵文档：input 是字符串
+    const payload: Record<string, any> = {
+      model,
+      input: prompt,
+      negative_prompt: '',
+      mode: 'pro',
+      sound: 'off',
       aspect_ratio: aspectRatio,
       duration,
-      cfg_scale: 0.5,
-    }, { headers: getJsonHeaders() }));
+    };
+    if (isImage2Video) {
+      payload.image = imageUrl;
+      payload.image_tail = '';
+    }
 
-    const taskId = create.data?.data?.task_id || create.data?.task_id;
-    if (!taskId) throw new Error(`可灵提交失败: ${create.data?.message || '未知错误'}`);
+    console.log('[Kling] 提交参数:', payload);
 
-    for (let i = 0; i < 60; i++) {
-      await new Promise(r => setTimeout(r, 10000));
-      const query = await axios.get(`https://www.dmxapi.cn/kling/v1/videos/text2video/${taskId}`, {
-        headers: { 'Authorization': getBearerAuth() }
-      });
-      const data = query.data?.data || query.data;
-      const status = (data?.task_status || data?.status || '').toLowerCase();
+    // validateStatus: 不让 axios 自动抛错，手动解析响应
+    const resp = await axios.post('https://www.dmxapi.cn/v1/responses', payload, {
+      headers: getHeaders(),
+      validateStatus: () => true,
+    });
 
-      if (status === 'succeed' || status === 'success') {
-        return data?.task_result?.videos?.[0]?.url || data?.video_url || data?.url || '';
+    const body = resp.data;
+    console.log('[Kling] 响应:', JSON.stringify(body, null, 2));
+
+    // 可灵响应格式: { code: 0, message: "SUCCEED", data: { task_id } }
+    // 或被包装为: { error: { message: "success", code: "dmxapi_kling_error_0" }, data: { task_id } }
+    const errCode = body?.error?.code || '';
+    const isKlingSuccess = body?.code === 0 || errCode === 'dmxapi_kling_error_0' || body?.message === 'SUCCEED';
+
+    if (resp.status >= 400 && !isKlingSuccess) {
+      const msg = body?.error?.message || body?.message || JSON.stringify(body);
+      throw new Error(`可灵提交失败: ${msg}`);
+    }
+
+    const taskId = body?.data?.task_id;
+    if (!taskId) {
+      console.error('[Kling] 无法提取 task_id:', JSON.stringify(body, null, 2));
+      throw new Error(`可灵提交失败: 无法提取任务ID`);
+    }
+
+    console.log(`[Kling] 任务已提交: ${taskId}`);
+
+    // 轮询结果（流式 SSE）
+    const getModel = isImage2Video ? 'kling-image2video-get' : 'kling-text2video-get';
+    for (let i = 0; i < 120; i++) {
+      await new Promise(r => setTimeout(r, 5000));
+      try {
+        const videoUrl = await pollKlingStream(taskId, getModel);
+        if (videoUrl) return videoUrl;
+      } catch (e: any) {
+        if (e.message?.includes('生成失败')) throw e;
+        continue;
       }
-      if (status === 'failed') throw new Error('可灵生成失败');
     }
     throw new Error('可灵生成超时');
-  } catch (error: any) {
-    throw new Error(error.response?.data?.message || error.message);
-  }
-};
-
-export const generateVideoSora2 = async (
-  prompt: string,
-  seconds: 4 | 8 | 12 = 12,
-  size: '720x1280' | '1280x720' | '1024x1792' | '1792x1024' = '720x1280'
-): Promise<string> => {
-  ensureKey();
-  try {
-    const formData = new FormData();
-    formData.append('prompt', prompt);
-    formData.append('model', 'sora-2');
-    formData.append('seconds', String(seconds));
-    formData.append('size', size);
-
-    const create = await requestWithRetry(() => axios.post('https://www.dmxapi.cn/v1/videos', formData, {
-      headers: { 'Authorization': DMX_API_KEY }
-    }));
-
-    const id = create.data?.id;
-    if (!id) throw new Error(`Sora2 提交失败`);
-
-    const pollUrl = `https://www.dmxapi.cn/v1/videos/${id}/content`;
-
-    for (let i = 0; i < 60; i++) {
-      await new Promise(r => setTimeout(r, 10000));
-      try {
-        const resp = await axios.get(pollUrl, {
-          headers: { 'Authorization': DMX_API_KEY },
-          responseType: 'blob',
-          timeout: 30000
-        });
-        if (resp.status === 200 && (resp.data as Blob).size > 0) {
-          return URL.createObjectURL(resp.data);
-        }
-      } catch (e: any) {
-        // Continue polling
-      }
-    }
-    throw new Error('Sora2 生成超时');
   } catch (error: any) {
     throw new Error(error.message);
   }
 };
 
+// 可灵流式轮询：逐块读取 SSE，收集最后一个 JSON，从 text 中提取 .mp4 URL
+const pollKlingStream = (taskId: string, model: string): Promise<string | null> => {
+  return new Promise((resolve, reject) => {
+    fetch('https://www.dmxapi.cn/v1/responses', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': getBearerAuth(),
+      },
+      body: JSON.stringify({
+        model,
+        input: taskId,
+        stream: true,
+      }),
+    }).then((resp) => {
+      if (!resp.ok) {
+        reject(new Error(`HTTP ${resp.status}`));
+        return;
+      }
+      const reader = resp.body?.getReader();
+      if (!reader) {
+        reject(new Error('No reader'));
+        return;
+      }
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let finalResult: any = null;
+
+      const read = (): Promise<void> => {
+        return reader!.read().then(({ done, value }) => {
+          if (done) {
+            if (finalResult) {
+              const url = extractKlingVideoUrl(finalResult);
+              if (url) { resolve(url); return; }
+            }
+            resolve(null);
+            return;
+          }
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed || trimmed.startsWith('event:')) continue;
+            let data = trimmed;
+            if (data.startsWith('data: ')) data = data.slice(6);
+            if (data === '[DONE]') {
+              if (finalResult) {
+                const url = extractKlingVideoUrl(finalResult);
+                if (url) { resolve(url); return; }
+              }
+              resolve(null);
+              return;
+            }
+
+            try {
+              const parsed = JSON.parse(data);
+              finalResult = parsed;
+              if (parsed.type === 'error' || parsed.error) {
+                reject(new Error('可灵生成失败'));
+                return;
+              }
+            } catch {}
+          }
+          return read();
+        });
+      };
+      read();
+    }).catch(reject);
+  });
+};
+
+// 可灵：从 response.output[0].content[0].text 中提取 .mp4 URL
+const extractKlingVideoUrl = (data: any): string | null => {
+  try {
+    const text = data?.response?.output?.[0]?.content?.[0]?.text || '';
+    const match = text.match(/(https?:\/\/[^\s]+\.mp4[^\s]*)/);
+    if (match?.[1]) {
+      return match[1].replace(/[\n\r].*$/, '');
+    }
+  } catch {}
+  return null;
+};
+
+// ═══════════════════════════════════════════════════════════════
+// 豆包视频生成（responses 接口）
+// 文档：doubao-video.md
+// ═══════════════════════════════════════════════════════════════
+
 export const generateVideoDoubao = async (
   prompt: string,
-  ratio: '16:9' | '9:16' | '1:1' = '16:9'
+  ratio: '16:9' | '9:16' | '1:1' = '16:9',
+  imageUrl?: string
 ): Promise<string> => {
   ensureKey();
   try {
-    const create = await requestWithRetry(() => axios.post('https://www.dmxapi.cn/v1/responses', {
+    // 豆包文档：input 是数组
+    const input: any[] = [{ type: 'text', text: prompt }];
+    if (imageUrl) {
+      input.push({
+        type: 'image_url',
+        image_url: { url: imageUrl },
+        role: 'first_frame',
+      });
+    }
+
+    const payload = {
       model: 'doubao-seedance-1-5-pro-responses',
-      input: [{ type: 'text', text: prompt }],
+      input,
+      generate_audio: true,
       resolution: '1080p',
-      ratio: ratio,
+      ratio,
       duration: 5,
-      watermark: false
-    }, { headers: getJsonHeaders() }));
+      seed: -1,
+      camera_fixed: false,
+      watermark: false,
+      return_last_frame: false,
+    };
 
-    const taskId = create.data?.id;
-    if (!taskId) throw new Error(`豆包提交失败`);
+    console.log('[Doubao] 提交参数:', payload);
 
-    for (let i = 0; i < 60; i++) {
-      await new Promise(r => setTimeout(r, 10000));
-      const query = await axios.post('https://www.dmxapi.cn/v1/responses', {
-        model: 'seedance-get',
-        input: taskId,
-        stream: false
-      }, { headers: getJsonHeaders() });
+    // 豆包文档：返回 { id: "cgt-...", usage: {...} }
+    const resp = await axios.post('https://www.dmxapi.cn/v1/responses', payload, {
+      headers: getHeaders(),
+      validateStatus: () => true,
+    });
 
-      const responseData = query.data;
-      const content = responseData?.response?.output?.[0]?.content?.[0]?.text || '';
-      const urlMatch = content.match(/视频URL: (https?:\/\/[^\s\n]+)/);
-      if (urlMatch && urlMatch[1]) return urlMatch[1];
+    const body = resp.data;
+    console.log('[Doubao] 响应:', JSON.stringify(body, null, 2));
 
-      const videoUrl = responseData?.video_url || responseData?.url || responseData?.data?.video_url;
-      if (videoUrl) return videoUrl;
+    const taskId = body?.id;
+    if (!taskId) {
+      const msg = body?.error?.message || body?.message || JSON.stringify(body);
+      throw new Error(`豆包提交失败: ${msg}`);
+    }
 
-      if (responseData?.status === 'failed' || responseData?.type === 'error') {
-        throw new Error(`豆包生成失败`);
+    console.log(`[Doubao] 任务已提交: ${taskId}`);
+
+    // 轮询结果（流式 SSE）
+    for (let i = 0; i < 120; i++) {
+      await new Promise(r => setTimeout(r, 5000));
+      try {
+        const videoUrl = await pollDoubaoStream(taskId);
+        if (videoUrl) return videoUrl;
+      } catch (e: any) {
+        if (e.message?.includes('生成失败')) throw e;
+        continue;
       }
     }
     throw new Error('豆包生成超时');
   } catch (error: any) {
     throw new Error(error.message);
   }
+};
+
+// 豆包流式轮询：监听 response.completed 事件，从 text 中提取 "视频URL:" 后面的链接
+const pollDoubaoStream = (taskId: string): Promise<string | null> => {
+  return new Promise((resolve, reject) => {
+    fetch('https://www.dmxapi.cn/v1/responses', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': getBearerAuth(),
+      },
+      body: JSON.stringify({
+        model: 'seedance-get',
+        input: taskId,
+        stream: true,
+      }),
+    }).then((resp) => {
+      if (!resp.ok) {
+        reject(new Error(`HTTP ${resp.status}`));
+        return;
+      }
+      const reader = resp.body?.getReader();
+      if (!reader) {
+        reject(new Error('No reader'));
+        return;
+      }
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      const read = (): Promise<void> => {
+        return reader!.read().then(({ done, value }) => {
+          if (done) {
+            resolve(null);
+            return;
+          }
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed || trimmed.startsWith('event:')) continue;
+            let data = trimmed;
+            if (data.startsWith('data: ')) data = data.slice(6);
+            if (data === '[DONE]') { resolve(null); return; }
+
+            try {
+              const parsed = JSON.parse(data);
+              if (parsed.type === 'response.completed') {
+                const text = parsed.response?.output?.[0]?.content?.[0]?.text || '';
+                const match = text.match(/视频URL:\s*(https:\/\/[^\s\n]+)/);
+                if (match?.[1]) { resolve(match[1]); return; }
+              }
+              if (parsed.type === 'error' || parsed.error) {
+                reject(new Error('豆包生成失败'));
+                return;
+              }
+            } catch {}
+          }
+          return read();
+        });
+      };
+      read();
+    }).catch(reject);
+  });
 };

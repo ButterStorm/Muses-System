@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
-import { User, LogOut, LayoutDashboard, Loader2 } from 'lucide-react';
+import { User, LogOut, LayoutDashboard, Loader2, KeyRound } from 'lucide-react';
 
 export default function UserMenu() {
   const router = useRouter();
@@ -47,7 +47,7 @@ export default function UserMenu() {
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors rounded-lg hover:bg-gray-100"
       >
-        <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white text-sm font-bold">
+        <div className="w-8 h-8 bg-black rounded-full flex items-center justify-center text-white text-sm font-bold">
           {user?.email?.[0].toUpperCase() || 'U'}
         </div>
         <span className="max-w-[120px] truncate hidden sm:inline">
@@ -69,12 +69,21 @@ export default function UserMenu() {
             </div>
 
             <Link
-              href="/canvas"
+              href="/projects"
               className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors relative z-50"
               onClick={() => setIsOpen(false)}
             >
               <LayoutDashboard className="w-4 h-4" />
-              我的画布
+              我的作品
+            </Link>
+
+            <Link
+              href="/login?mode=reset"
+              className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors relative z-50"
+              onClick={() => setIsOpen(false)}
+            >
+              <KeyRound className="w-4 h-4" />
+              修改密码
             </Link>
 
             <button

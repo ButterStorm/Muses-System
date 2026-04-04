@@ -1,12 +1,19 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Handle, Position, NodeProps, useReactFlow } from '@xyflow/react';
-import { Image as ImageIcon, Upload } from 'lucide-react';
+import { Image as ImageIcon, Upload, Loader2 } from 'lucide-react';
+import { uploadImage } from '@/lib/storage';
+
+const ACCEPT_TYPES = 'image/png,image/jpeg,image/webp,image/gif';
+const MAX_SIZE_MB = 10;
 
 const ImageInputNode = ({ id, data }: NodeProps) => {
     const { setNodes } = useReactFlow();
     const [imageUrl, setImageUrl] = useState(data.imageUrl as string || '');
+    const [uploading, setUploading] = useState(false);
+    const [error, setError] = useState('');
+    const inputRef = useRef<HTMLInputElement>(null);
     const defaultImage = "https://images.unsplash.com/photo-1620641788421-7a1c342ea42e?q=80&w=1000&auto=format&fit=crop";
 
     useEffect(() => {
@@ -20,31 +27,93 @@ const ImageInputNode = ({ id, data }: NodeProps) => {
         );
     }, [imageUrl, id, setNodes]);
 
+    const handleFile = async (file: File) => {
+        setError('');
+
+        if (file.size > MAX_SIZE_MB * 1024 * 1024) {
+            setError(`文件不能超过 ${MAX_SIZE_MB}MB`);
+            return;
+        }
+
+        setUploading(true);
+        try {
+            const url = await uploadImage(file);
+            // 等图片真正加载完再关闭 loading
+            await new Promise<void>((resolve, reject) => {
+                const img = new Image();
+                img.onload = () => resolve();
+                img.onerror = () => reject(new Error('图片加载失败'));
+                img.src = url;
+            });
+            setImageUrl(url);
+        } catch (e: any) {
+            setError(e.message || '上传失败');
+        } finally {
+            setUploading(false);
+        }
+    };
+
+    const onInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) handleFile(file);
+        e.target.value = '';
+    };
+
+    const onDrop = (e: React.DragEvent) => {
+        e.preventDefault();
+        const file = e.dataTransfer.files?.[0];
+        if (file && file.type.startsWith('image/')) handleFile(file);
+    };
+
+    const displayUrl = imageUrl || defaultImage;
+
     return (
         <div className="group">
             <div className="mb-2 ml-1 text-[11px] font-bold text-gray-400 uppercase tracking-widest">图片参考</div>
             <div className="bg-white/80 backdrop-blur-md rounded-3xl shadow-2xl border border-gray-100 p-2 w-64 relative transition-all duration-300 hover:shadow-3xl hover:border-blue-100 group">
-                <div className="relative aspect-[3/4] rounded-2xl overflow-hidden bg-gray-100">
-                    {imageUrl || defaultImage ? (
-                        <>
-                            <img
-                                src={imageUrl || defaultImage}
-                                alt="Reference"
-                                className="w-full h-full object-cover"
-                            />
-                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
-                                <button className="bg-white/90 p-2 rounded-full shadow-lg hover:scale-110 transition-transform">
-                                    <Upload size={18} className="text-gray-700" />
-                                </button>
+                <div
+                    className="relative aspect-[3/4] rounded-2xl overflow-hidden bg-gray-100 cursor-pointer"
+                    onClick={() => !uploading && inputRef.current?.click()}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={onDrop}
+                >
+                    <img
+                        src={displayUrl}
+                        alt="Reference"
+                        className="w-full h-full object-cover"
+                    />
+
+                    {/* Uploading overlay - always visible when uploading */}
+                    {uploading && (
+                        <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center gap-2 z-10">
+                            <div className="bg-white/90 p-3 rounded-full shadow-lg">
+                                <Loader2 size={22} className="text-gray-700 animate-spin" />
                             </div>
-                        </>
-                    ) : (
-                        <div className="w-full h-full flex flex-col items-center justify-center text-gray-400 space-y-2">
-                            <ImageIcon size={32} />
-                            <span className="text-xs font-bold">点击上传图片</span>
+                            <span className="text-white text-xs font-medium drop-shadow">上传中...</span>
+                        </div>
+                    )}
+
+                    {/* Hover overlay - only when NOT uploading */}
+                    {!uploading && (
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
+                            <div className="bg-white/90 p-2 rounded-full shadow-lg hover:scale-110 transition-transform">
+                                <Upload size={18} className="text-gray-700" />
+                            </div>
                         </div>
                     )}
                 </div>
+
+                {error && (
+                    <p className="text-red-500 text-[10px] mt-1.5 px-1 truncate">{error}</p>
+                )}
+
+                <input
+                    ref={inputRef}
+                    type="file"
+                    accept={ACCEPT_TYPES}
+                    onChange={onInputChange}
+                    className="hidden"
+                />
             </div>
 
             <Handle

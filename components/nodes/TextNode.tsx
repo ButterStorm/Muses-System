@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Handle, Position, NodeProps, NodeResizer } from '@xyflow/react';
+import React, { useState, useEffect } from 'react';
+import { Handle, Position, NodeProps, NodeResizer, useReactFlow } from '@xyflow/react';
 import { Maximize2, FileText } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -15,14 +15,24 @@ interface TextNodeData {
 
 const TextNode = ({ data, id, selected }: NodeProps) => {
   const nodeData = data as unknown as TextNodeData;
+  const { setNodes } = useReactFlow();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [output, setOutput] = useState(nodeData.output);
 
+  // 同步 output 回 ReactFlow node data
+  useEffect(() => {
+    setNodes((nodes) =>
+      nodes.map((node) => {
+        if (node.id === id) {
+          return { ...node, data: { ...node.data, output } };
+        }
+        return node;
+      })
+    );
+  }, [output, id, setNodes]);
+
   const handleContentChange = (newContent: string) => {
     setOutput(newContent);
-    if (data.onChange) {
-      (data as any).onChange(id, { ...nodeData, output: newContent });
-    }
   };
 
   return (
@@ -47,7 +57,7 @@ const TextNode = ({ data, id, selected }: NodeProps) => {
         />
 
         <div className="relative flex-1 overflow-hidden">
-          <div className="prose prose-sm max-w-none text-gray-700 leading-relaxed overflow-y-auto h-full custom-scrollbar nodrag">
+          <div className="prose prose-sm max-w-none text-gray-700 leading-relaxed overflow-y-auto h-full custom-scrollbar nodrag nowheel">
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
               components={{

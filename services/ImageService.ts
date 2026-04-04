@@ -41,7 +41,7 @@ export const generateImageSeedream4 = async (
         image: images && images.length > 0 ? images : undefined,
         sequential_image_generation: images && images.length > 0 ? 'auto' : 'disabled',
         sequential_image_generation_options: images && images.length > 0 ? { max_images: 1 } : undefined,
-        response_format: 'b64_json',
+        response_format: 'url',
         size,
         stream: false,
         watermark: false,
@@ -49,14 +49,11 @@ export const generateImageSeedream4 = async (
       { headers: buildHeaders() }
     );
     const first = resp.data?.data?.[0];
-    if (first?.b64_json) {
-      const bin = Uint8Array.from(atob(first.b64_json), c => c.charCodeAt(0));
-      const blob = new Blob([bin], { type: 'image/png' });
-      const url = URL.createObjectURL(blob);
-      return url;
-    }
     if (first?.url) {
       return first.url;
+    }
+    if (first?.b64_json) {
+      throw new Error('API 未返回图片 URL');
     }
     throw new Error('图片生成失败：未返回有效数据');
   } catch (error) {
@@ -82,13 +79,17 @@ export const generateImageNanoBanana = async (
       {
         contents: [{ parts: [{ text: prompt }] }],
       },
-      { headers: { ...buildHeaders() }, responseType: 'arraybuffer' }
+      { headers: buildHeaders(), responseType: 'arraybuffer' }
     );
     const ct = (resp.headers['content-type'] || resp.headers['Content-Type'] || '').toString();
     if (ct.startsWith('image/')) {
-      const blob = new Blob([resp.data as ArrayBuffer], { type: ct.split(';')[0] });
-      const url = URL.createObjectURL(blob);
-      return url;
+      const buffer = resp.data as ArrayBuffer;
+      const bytes = new Uint8Array(buffer);
+      let binary = '';
+      for (let i = 0; i < bytes.length; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      return `data:${ct.split(';')[0]};base64,${btoa(binary)}`;
     }
     throw new Error('图片生成失败');
   } catch (error) {

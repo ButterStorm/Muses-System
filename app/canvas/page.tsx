@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, Suspense } from 'react';
 import dynamic from 'next/dynamic';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
 import { Loader2 } from 'lucide-react';
 
@@ -10,8 +10,10 @@ const FlowCanvas = dynamic(() => import('@/components/FlowCanvas'), {
   ssr: false,
 });
 
-export default function CanvasPage() {
+function CanvasContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const projectId = searchParams.get('projectId') || undefined;
   const { isAuthenticated, isLoading, checkAuth } = useAuthStore();
   const [isChecking, setIsChecking] = useState(true);
 
@@ -44,5 +46,19 @@ export default function CanvasPage() {
     return null;
   }
 
-  return <FlowCanvas />;
+  return <FlowCanvas projectId={projectId} />;
+}
+
+export default function CanvasPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="h-screen w-full flex items-center justify-center bg-gray-50">
+          <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+        </div>
+      }
+    >
+      <CanvasContent />
+    </Suspense>
+  );
 }

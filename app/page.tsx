@@ -172,7 +172,7 @@ const LandingPage: React.FC = () => {
             <Link href="/canvas" className="text-gray-300 hover:text-white transition-colors text-sm font-medium">
               {t.nav.canvas}
             </Link>
-            <a href="#works" className="text-gray-300 hover:text-white transition-colors text-sm font-medium">{t.nav.works}</a>
+            <Link href="/projects" className="text-gray-300 hover:text-white transition-colors text-sm font-medium">{t.nav.works}</Link>
 
             <button
               onClick={() => setLang(lang === 'en' ? 'zh' : 'en')}

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import {
   ReactFlow,
   addEdge,
@@ -12,6 +12,8 @@ import {
   Background,
   useEdgesState,
   useNodesState,
+  useReactFlow,
+  ReactFlowProvider,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
@@ -25,6 +27,8 @@ import TextInputNode from './nodes/TextInputNode';
 import ImageInputNode from './nodes/ImageInputNode';
 import Toolbar from './Toolbar';
 import AgentPanel from './AgentPanel';
+import { useProjectStore } from '@/stores/projectStore';
+import { useAuthStore } from '@/stores/authStore';
 
 const nodeTypes = {
   textNode: TextNode,
@@ -67,9 +71,43 @@ const initialEdges: Edge[] = [
   { id: 'e2', source: 'input-text', target: 'gen-1', animated: true, style: { strokeWidth: 2, stroke: '#e2e8f0' } },
 ];
 
-const FlowCanvas: React.FC = () => {
+interface FlowCanvasProps {
+  projectId?: string;
+}
+
+// 内部组件 — 在 ReactFlowProvider 内部，可以使用 useReactFlow
+const FlowInner: React.FC<FlowCanvasProps> = ({ projectId }) => {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+  const { fitView } = useReactFlow();
+
+  const { currentProject, setCurrentProject, setDirty, loadProject, createProject, saveProject, renameProject } = useProjectStore();
+  const { user } = useAuthStore();
+  const loadedRef = useRef<string | null>(null);
+
+  // 加载已有项目
+  useEffect(() => {
+    if (projectId && loadedRef.current !== projectId) {
+      loadedRef.current = projectId;
+      loadProject(projectId).then((flowData) => {
+        if (flowData) {
+          setNodes(flowData.nodes || []);
+          setEdges(flowData.edges || []);
+          requestAnimationFrame(() => fitView({ duration: 300 }));
+        }
+      });
+    } else if (!projectId) {
+      loadedRef.current = null;
+      setCurrentProject(null);
+    }
+  }, [projectId]);
+
+  // 标记脏状态
+  useEffect(() => {
+    if (currentProject) {
+      setDirty(true);
+    }
+  }, [nodes, edges]);
 
   const onConnect = useCallback(
     (params: Connection) => setEdges((eds) => addEdge(params, eds)),
@@ -78,36 +116,20 @@ const FlowCanvas: React.FC = () => {
 
   const addNode = (type: string, label: string) => {
     const base = {
-      id: `${nodes.length + 1}`,
+      id: `node-${Date.now()}`,
       type,
       position: { x: Math.random() * 400 + 100, y: Math.random() * 300 + 100 },
     } as Partial<Node>;
 
     let data: any = { label, prompt: '' };
-    if (type === 'textNode') {
-      data = { label, prompt: '', output: '' };
-    }
-    if (type === 'imageNode') {
-      data = { label, prompt: '', imageUrl: '', isLoading: false };
-    }
-    if (type === 'videoNode') {
-      data = { label, prompt: '', videoUrl: '', isLoading: false };
-    }
-    if (type === 'audioNode') {
-      data = { label, prompt: '', audioUrl: '', output: '', isLoading: false };
-    }
-    if (type === 'musicNode') {
-      data = { label, prompt: '', musicUrl: '', isLoading: false };
-    }
-    if (type === 'unifiedNode') {
-      data = { label, type: 'text', prompt: '', model: 'gpt-5-mini', count: 1, duration: 5, voice: 'zh_male_sunny', output: null, isLoading: false };
-    }
-    if (type === 'textInputNode') {
-      data = { label, text: '' };
-    }
-    if (type === 'imageInputNode') {
-      data = { label, imageUrl: '' };
-    }
+    if (type === 'textNode') data = { label, prompt: '', output: '' };
+    if (type === 'imageNode') data = { label, prompt: '', imageUrl: '', isLoading: false };
+    if (type === 'videoNode') data = { label, prompt: '', videoUrl: '', isLoading: false };
+    if (type === 'audioNode') data = { label, prompt: '', audioUrl: '', output: '', isLoading: false };
+    if (type === 'musicNode') data = { label, prompt: '', musicUrl: '', isLoading: false };
+    if (type === 'unifiedNode') data = { label, type: 'text', prompt: '', model: 'gpt-5-mini', count: 1, duration: 5, voice: 'zh_male_sunny', output: null, isLoading: false };
+    if (type === 'textInputNode') data = { label, text: '' };
+    if (type === 'imageInputNode') data = { label, imageUrl: '' };
 
     const newNode: Node = {
       ...(base as Node),
@@ -118,9 +140,29 @@ const FlowCanvas: React.FC = () => {
     setNodes((nds) => [...nds, newNode]);
   };
 
+  const handleSave = async () => {
+    if (!user) return;
+
+    if (!currentProject) {
+      await createProject(user.id);
+    }
+
+    const flowData = {
+      nodes: nodes.map(({ data, id, position, type, style }) => ({
+        id, type, position, style, data,
+      })),
+      edges: edges.map(({ id, source, target, sourceHandle, targetHandle, type, animated, style }) => ({
+        id, source, target, sourceHandle, targetHandle, type, animated, style,
+      })),
+      viewport: { x: 0, y: 0, zoom: 1 },
+    };
+
+    await saveProject(flowData);
+  };
+
   return (
     <div className="h-screen w-full flex flex-col bg-gray-50 overflow-hidden">
-      <Toolbar onAddNode={addNode} />
+      <Toolbar onAddNode={addNode} onSave={handleSave} projectName={currentProject?.name} onRename={(name) => renameProject(currentProject!.id, name)} />
       <div className="flex-1 flex relative overflow-hidden">
         <div className="flex-1 h-full relative">
           <ReactFlow
@@ -142,6 +184,15 @@ const FlowCanvas: React.FC = () => {
         <AgentPanel />
       </div>
     </div>
+  );
+};
+
+// 外层组件 — 提供 ReactFlowProvider
+const FlowCanvas: React.FC<FlowCanvasProps> = ({ projectId }) => {
+  return (
+    <ReactFlowProvider>
+      <FlowInner projectId={projectId} />
+    </ReactFlowProvider>
   );
 };
 

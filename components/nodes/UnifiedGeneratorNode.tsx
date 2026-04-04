@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Handle, Position, NodeProps, useReactFlow } from '@xyflow/react';
 import { ChevronDown, Loader2, Play } from 'lucide-react';
 import { generateTextWithDmx } from '@/services/TextService';
 import { generateImageWithDmx } from '@/services/ImageService';
-import { generateVideoKling, generateVideoSora2, generateVideoDoubao } from '@/services/VideoService';
+import { generateVideoKling, generateVideoDoubao } from '@/services/VideoService';
 import { textToSpeech, getAvailableVoices } from '@/services/AudioService';
 import { generateMusicInspiration, generateMusicCustom } from '@/services/MusicService';
 
@@ -50,8 +50,8 @@ const TYPE_CONFIG: Record<NodeType, { label: string; color: string; classes: { b
     },
     music: {
         label: '文生音乐',
-        color: 'pink',
-        classes: { border: 'border-pink-400', bg: 'bg-pink-500', bgMuted: 'bg-pink-50/50', text: 'text-pink-600', textMuted: 'text-pink-400', ring: 'focus:ring-pink-500/20' },
+        color: 'orange',
+        classes: { border: 'border-orange-400', bg: 'bg-orange-500', bgMuted: 'bg-orange-50/50', text: 'text-orange-600', textMuted: 'text-orange-400', ring: 'focus:ring-orange-500/20' },
         icon: 'music'
     },
 };
@@ -59,14 +59,14 @@ const TYPE_CONFIG: Record<NodeType, { label: string; color: string; classes: { b
 const MODELS = {
     text: ['gpt-5-mini', 'deepseek-chat', 'kimi-k2.5', 'doubao-seed-1-8-251228'],
     image: ['doubao-seedream-4-0-250828'],
-    video: ['kling', 'sora-2', 'doubao'],
+    video: ['kling', 'doubao'],
     audio: ['speech-2.6-hd', 'openai-tts-1'],
     music: ['chirp-v5'],
 };
 
 const UnifiedGeneratorNode = ({ id, data }: NodeProps) => {
     const voices = getAvailableVoices();
-    const { addNodes, addEdges, getNode, getEdges, getNodes } = useReactFlow();
+    const { addNodes, addEdges, getNode, getEdges, getNodes, setNodes } = useReactFlow();
 
     const [nodeData, setNodeData] = useState<UnifiedNodeData>({
         label: data.label as string || '文生文',
@@ -81,6 +81,30 @@ const UnifiedGeneratorNode = ({ id, data }: NodeProps) => {
 
     const [isTypeMenuOpen, setIsTypeMenuOpen] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+    // 同步配置回 ReactFlow node data（排除 isLoading）
+    useEffect(() => {
+        setNodes((nodes) =>
+            nodes.map((node) => {
+                if (node.id === id) {
+                    return {
+                        ...node,
+                        data: {
+                            ...node.data,
+                            label: nodeData.label,
+                            type: nodeData.type,
+                            model: nodeData.model,
+                            count: nodeData.count,
+                            duration: nodeData.duration,
+                            voice: nodeData.voice,
+                            musicMode: nodeData.musicMode,
+                        },
+                    };
+                }
+                return node;
+            })
+        );
+    }, [nodeData.label, nodeData.type, nodeData.model, nodeData.count, nodeData.duration, nodeData.voice, nodeData.musicMode, id, setNodes]);
 
     const handleTypeChange = (type: NodeType) => {
         setNodeData(prev => ({
@@ -130,11 +154,9 @@ const UnifiedGeneratorNode = ({ id, data }: NodeProps) => {
                         break;
                     case 'video':
                         if (nodeData.model === 'kling') {
-                            generationResults = await generateVideoKling(promptToUse, nodeData.duration as 5 | 10, '9:16');
-                        } else if (nodeData.model === 'sora-2') {
-                            generationResults = await generateVideoSora2(promptToUse, nodeData.duration as 4 | 8 | 12, '720x1280');
+                            generationResults = await generateVideoKling(promptToUse, nodeData.duration as 5 | 10, '9:16', latestImageUrl || undefined);
                         } else {
-                            generationResults = await generateVideoDoubao(promptToUse, '16:9');
+                            generationResults = await generateVideoDoubao(promptToUse, '16:9', latestImageUrl || undefined);
                         }
                         break;
                     case 'audio':

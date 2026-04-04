@@ -12,6 +12,8 @@ interface AuthState {
   signUp: (email: string, password: string) => Promise<{ error: string | null; needsConfirmation?: boolean }>;
   signOut: () => Promise<void>;
   checkAuth: () => Promise<void>;
+  updatePassword: (newPassword: string) => Promise<{ error: string | null }>;
+  resetPasswordEmail: (email: string) => Promise<{ error: string | null }>;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -106,6 +108,32 @@ export const useAuthStore = create<AuthState>((set) => ({
       isAuthenticated: false,
       isLoading: false
     });
+  },
+
+  updatePassword: async (newPassword: string) => {
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) {
+        return { error: error.message };
+      }
+      return { error: null };
+    } catch (err: any) {
+      return { error: err?.message || '修改密码失败' };
+    }
+  },
+
+  resetPasswordEmail: async (email: string) => {
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: typeof window !== 'undefined' ? `${window.location.origin}/login?mode=reset` : undefined,
+      });
+      if (error) {
+        return { error: error.message };
+      }
+      return { error: null };
+    } catch (err: any) {
+      return { error: err?.message || '发送重置邮件失败' };
+    }
   },
 
   checkAuth: async () => {

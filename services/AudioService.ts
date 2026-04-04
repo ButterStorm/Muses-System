@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { uploadBuffer } from '@/lib/storage';
 
 const DMX_API_KEY = process.env.NEXT_PUBLIC_DMX_API_KEY || process.env.NEXT_PUBLIC_302AI_API_KEY;
 
@@ -42,8 +43,9 @@ export const textToSpeech = async (
       }
     );
 
-    const audioBlob = new Blob([response.data], { type: 'audio/mpeg' });
-    return URL.createObjectURL(audioBlob);
+    const audioBuffer = response.data as ArrayBuffer;
+    const url = await uploadBuffer(audioBuffer, 'audio/mpeg', 'mp3');
+    return url;
   } catch (error) {
     console.error('[TTS] 语音合成失败:', error);
     const message = error instanceof Error ? error.message : '语音合成失败';
