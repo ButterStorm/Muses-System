@@ -46,7 +46,6 @@ const VideoNode = ({ data, selected }: NodeProps) => {
               <video
                 src={nodeData.videoUrl}
                 className="w-full h-full object-cover"
-                muted
                 onMouseEnter={(e) => (e.target as HTMLVideoElement).play()}
                 onMouseLeave={(e) => {
                   const v = (e.target as HTMLVideoElement);

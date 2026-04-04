@@ -112,7 +112,7 @@ const UserNav: React.FC = () => {
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center gap-2 text-gray-300 hover:text-white transition-colors"
       >
-        <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white text-sm font-bold">
+        <div className="w-8 h-8 bg-black rounded-full flex items-center justify-center text-white text-sm font-bold border border-gray-600">
           {user?.email?.[0].toUpperCase() || 'U'}
         </div>
       </button>

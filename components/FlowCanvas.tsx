@@ -90,8 +90,8 @@ const FlowInner: React.FC<FlowCanvasProps> = ({ projectId }) => {
     if (projectId && loadedRef.current !== projectId) {
       loadedRef.current = projectId;
       loadProject(projectId).then((flowData) => {
-        if (flowData) {
-          setNodes(flowData.nodes || []);
+        if (flowData && flowData.nodes && flowData.nodes.length > 0) {
+          setNodes(flowData.nodes);
           setEdges(flowData.edges || []);
           requestAnimationFrame(() => fitView({ duration: 300 }));
         }
