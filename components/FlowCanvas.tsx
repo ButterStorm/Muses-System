@@ -77,9 +77,10 @@ interface FlowCanvasProps {
 
 // 内部组件 — 在 ReactFlowProvider 内部，可以使用 useReactFlow
 const FlowInner: React.FC<FlowCanvasProps> = ({ projectId }) => {
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
-  const { fitView } = useReactFlow();
+  // 有 projectId = 打开已保存项目，用空数组避免默认节点覆盖存储数据
+  const [nodes, setNodes, onNodesChange] = useNodesState(projectId ? [] : initialNodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(projectId ? [] : initialEdges);
+  const { fitView, getViewport } = useReactFlow();
 
   const { currentProject, setCurrentProject, setDirty, loadProject, createProject, saveProject, renameProject } = useProjectStore();
   const { user } = useAuthStore();
@@ -115,10 +116,18 @@ const FlowInner: React.FC<FlowCanvasProps> = ({ projectId }) => {
   );
 
   const addNode = (type: string, label: string) => {
+    // Calculate canvas center of current viewport
+    const { x: vx, y: vy, zoom } = getViewport();
+    const container = document.querySelector('.react-flow') as HTMLElement;
+    const cw = container ? container.clientWidth / 2 : 400;
+    const ch = container ? container.clientHeight / 2 : 300;
+    const cx = (-vx + cw) / zoom;
+    const cy = (-vy + ch) / zoom;
+
     const base = {
       id: `node-${Date.now()}`,
       type,
-      position: { x: Math.random() * 400 + 100, y: Math.random() * 300 + 100 },
+      position: { x: cx, y: cy },
     } as Partial<Node>;
 
     let data: any = { label, prompt: '' };

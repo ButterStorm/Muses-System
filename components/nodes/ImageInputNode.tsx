@@ -1,51 +1,45 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { Handle, Position, NodeProps, useReactFlow } from '@xyflow/react';
-import { Image as ImageIcon, Upload, Loader2 } from 'lucide-react';
+import { Upload, Loader2 } from 'lucide-react';
 import { uploadImage } from '@/lib/storage';
 
 const ACCEPT_TYPES = 'image/png,image/jpeg,image/webp,image/gif';
-const MAX_SIZE_MB = 10;
+const defaultImage = "https://images.unsplash.com/photo-1620641788421-7a1c342ea42e?q=80&w=1000&auto=format&fit=crop";
 
 const ImageInputNode = ({ id, data }: NodeProps) => {
     const { setNodes } = useReactFlow();
-    const [imageUrl, setImageUrl] = useState(data.imageUrl as string || '');
     const [uploading, setUploading] = useState(false);
     const [error, setError] = useState('');
     const inputRef = useRef<HTMLInputElement>(null);
-    const defaultImage = "https://images.unsplash.com/photo-1620641788421-7a1c342ea42e?q=80&w=1000&auto=format&fit=crop";
 
-    useEffect(() => {
+    const imageUrl = (data as any).imageUrl as string || '';
+
+    const updateNodeData = (updates: Record<string, any>) => {
         setNodes((nodes) =>
             nodes.map((node) => {
                 if (node.id === id) {
-                    return { ...node, data: { ...node.data, imageUrl } };
+                    return { ...node, data: { ...node.data, ...updates } };
                 }
                 return node;
             })
         );
-    }, [imageUrl, id, setNodes]);
+    };
 
     const handleFile = async (file: File) => {
         setError('');
 
-        if (file.size > MAX_SIZE_MB * 1024 * 1024) {
-            setError(`文件不能超过 ${MAX_SIZE_MB}MB`);
-            return;
-        }
-
         setUploading(true);
         try {
             const url = await uploadImage(file);
-            // 等图片真正加载完再关闭 loading
             await new Promise<void>((resolve, reject) => {
                 const img = new Image();
                 img.onload = () => resolve();
                 img.onerror = () => reject(new Error('图片加载失败'));
                 img.src = url;
             });
-            setImageUrl(url);
+            updateNodeData({ imageUrl: url });
         } catch (e: any) {
             setError(e.message || '上传失败');
         } finally {
@@ -83,7 +77,6 @@ const ImageInputNode = ({ id, data }: NodeProps) => {
                         className="w-full h-full object-cover"
                     />
 
-                    {/* Uploading overlay - always visible when uploading */}
                     {uploading && (
                         <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center gap-2 z-10">
                             <div className="bg-white/90 p-3 rounded-full shadow-lg">
@@ -93,7 +86,6 @@ const ImageInputNode = ({ id, data }: NodeProps) => {
                         </div>
                     )}
 
-                    {/* Hover overlay - only when NOT uploading */}
                     {!uploading && (
                         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
                             <div className="bg-white/90 p-2 rounded-full shadow-lg hover:scale-110 transition-transform">

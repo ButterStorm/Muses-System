@@ -57,7 +57,7 @@ function LoginForm() {
 
   useEffect(() => {
     if (isAuthenticated && mode !== 'reset') {
-      router.push('/canvas');
+      router.push('/');
     }
   }, [isAuthenticated, router, mode]);
 
@@ -107,7 +107,7 @@ function LoginForm() {
           setError(authError);
         } else {
           setSuccess('密码修改成功！正在跳转...');
-          setTimeout(() => router.push('/canvas'), 1500);
+          setTimeout(() => router.push('/'), 1500);
         }
       }
     }

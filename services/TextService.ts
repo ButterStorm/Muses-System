@@ -27,13 +27,24 @@ interface ChatCompletionsResponse {
   model: string;
 }
 
-export const generateTextWithDmx = async (prompt: string, model: string): Promise<string> => {
+export const generateTextWithDmx = async (prompt: string, model: string, imageUrl?: string): Promise<string> => {
   ensureApiKeyConfigured();
   const resolvedModel = model === 'doubao' ? DMX_DoubaoTextModel : model;
 
+  // Build message content - support vision (image + text)
+  let content: any;
+  if (imageUrl) {
+    content = [
+      { type: 'image_url', image_url: { url: imageUrl } },
+      { type: 'text', text: prompt },
+    ];
+  } else {
+    content = prompt;
+  }
+
   const requestBody: any = {
     model: resolvedModel,
-    messages: [{ role: 'user', content: prompt }],
+    messages: [{ role: 'user', content }],
   };
 
   if (resolvedModel.startsWith('gemini-3')) {

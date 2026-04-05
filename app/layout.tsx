@@ -2,8 +2,11 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "SuperFlow - AI Creation Platform",
-  description: "Design Your Future with Passion & Purpose",
+  title: "MusesSystem",
+  description: "AI 创作平台：用激情与目标设计未来，释放你的创造潜能",
+  icons: {
+    icon: "/bs_logo.jpeg",
+  },
 };
 
 export default function RootLayout({

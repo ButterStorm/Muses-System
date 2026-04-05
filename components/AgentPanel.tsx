@@ -45,9 +45,7 @@ const AgentPanel: React.FC = () => {
 
                 {/* Coming Soon */}
                 <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
-                    <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mb-5">
-                        <Lock size={28} className="text-gray-400" />
-                    </div>
+                    <img src="/agent-logo.png" alt="Agent" className="w-16 h-16 rounded-2xl object-cover mb-5" />
                     <h3 className="text-lg font-semibold text-gray-800 mb-2">功能开发中</h3>
                     <p className="text-sm text-gray-500 leading-relaxed max-w-[240px]">
                         Agent 功能正在紧锣密鼓地开发中，后续版本将会开放，敬请期待。

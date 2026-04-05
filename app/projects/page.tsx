@@ -11,7 +11,7 @@ import { Loader2, Plus, Trash2, ArrowLeft } from 'lucide-react';
 
 export default function ProjectsPage() {
   const router = useRouter();
-  const { user, isAuthenticated, isLoading: authLoading, checkAuth } = useAuthStore();
+  const { user, isAuthenticated, isLoading: authLoading } = useAuthStore();
   const { deleteProject, renameProject, createProject } = useProjectStore();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
@@ -19,8 +19,6 @@ export default function ProjectsPage() {
   const [editName, setEditName] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
-
-  useEffect(() => { checkAuth(); }, [checkAuth]);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) router.push('/login');

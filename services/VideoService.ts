@@ -40,7 +40,7 @@ export const generateVideoKling = async (
       input: prompt,
       negative_prompt: '',
       mode: 'pro',
-      sound: 'off',
+      sound: 'on',
       aspect_ratio: aspectRatio,
       duration,
     };

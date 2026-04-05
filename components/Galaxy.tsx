@@ -327,27 +327,13 @@ export default function Galaxy({
                 ctn.removeEventListener('mousemove', handleMouseMove);
                 ctn.removeEventListener('mouseleave', handleMouseLeave);
             }
-            ctn.removeChild(gl.canvas);
+            if (ctn.contains(gl.canvas)) {
+                ctn.removeChild(gl.canvas);
+            }
             gl.getExtension('WEBGL_lose_context')?.loseContext();
         };
-    }, [
-        focal,
-        rotation,
-        starSpeed,
-        density,
-        hueShift,
-        disableAnimation,
-        speed,
-        mouseInteraction,
-        glowIntensity,
-        saturation,
-        mouseRepulsion,
-        twinkleIntensity,
-        rotationSpeed,
-        repulsionStrength,
-        autoCenterRepulsion,
-        transparent
-    ]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     return <div ref={ctnDom} className="w-full h-full relative" {...rest} />;
 }

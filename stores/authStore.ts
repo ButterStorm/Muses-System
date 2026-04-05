@@ -16,6 +16,18 @@ interface AuthState {
   resetPasswordEmail: (email: string) => Promise<{ error: string | null }>;
 }
 
+// Register auth state listener once at module level
+if (typeof window !== 'undefined') {
+  supabase.auth.onAuthStateChange((event, session) => {
+    const store = useAuthStore.getState();
+    if (event === 'SIGNED_IN' && session?.user) {
+      store.setUser(session.user as User);
+    } else if (event === 'SIGNED_OUT') {
+      store.setUser(null);
+    }
+  });
+}
+
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   isLoading: true,
@@ -153,23 +165,6 @@ export const useAuthStore = create<AuthState>((set) => ({
           isLoading: false
         });
       }
-
-      // 监听登录状态变化
-      supabase.auth.onAuthStateChange((event, session) => {
-        if (event === 'SIGNED_IN' && session?.user) {
-          set({
-            user: session.user as User,
-            isAuthenticated: true,
-            isLoading: false
-          });
-        } else if (event === 'SIGNED_OUT') {
-          set({
-            user: null,
-            isAuthenticated: false,
-            isLoading: false
-          });
-        }
-      });
     } catch (err) {
       set({
         user: null,

@@ -58,25 +58,28 @@ const TYPE_CONFIG: Record<NodeType, { label: string; color: string; classes: { b
 
 const MODELS = {
     text: ['gpt-5-mini', 'deepseek-chat', 'kimi-k2.5', 'doubao-seed-1-8-251228'],
-    image: ['doubao-seedream-4-0-250828'],
+    image: ['doubao-seedream-5.0-lite'],
     video: ['kling', 'doubao'],
     audio: ['speech-2.6-hd', 'openai-tts-1'],
-    music: ['chirp-v5'],
+    music: ['suno-v5'],
 };
 
 const UnifiedGeneratorNode = ({ id, data }: NodeProps) => {
     const voices = getAvailableVoices();
     const { addNodes, addEdges, getNode, getEdges, getNodes, setNodes } = useReactFlow();
 
-    const [nodeData, setNodeData] = useState<UnifiedNodeData>({
-        label: data.label as string || '文生文',
-        type: (data.type as NodeType) || 'text',
-        model: (data.model as string) || MODELS.text[0],
-        count: (data.count as number) || 1,
-        duration: (data.duration as number) || 5,
-        voice: (data.voice as string) || voices[0].id,
-        musicMode: (data.musicMode as MusicGenerationMode) || 'inspiration',
-        isLoading: false,
+    const [nodeData, setNodeData] = useState<UnifiedNodeData>(() => {
+        const nodeType = (data.type as NodeType) || 'text';
+        return {
+            label: data.label as string || '文生文',
+            type: nodeType,
+            model: (data.model as string) || MODELS[nodeType]?.[0] || MODELS.text[0],
+            count: (data.count as number) || 1,
+            duration: (data.duration as number) || 5,
+            voice: (data.voice as string) || voices[0].id,
+            musicMode: (data.musicMode as MusicGenerationMode) || 'inspiration',
+            isLoading: false,
+        };
     });
 
     const [isTypeMenuOpen, setIsTypeMenuOpen] = useState(false);
@@ -130,8 +133,26 @@ const UnifiedGeneratorNode = ({ id, data }: NodeProps) => {
 
             const sourceNodes = nodes.filter(node => sourceNodeIds.includes(node.id));
 
-            const latestPrompt = (sourceNodes.find(node => (node.data as any)?.text !== undefined)?.data as any)?.text || '';
-            const latestImageUrl = (sourceNodes.find(node => (node.data as any)?.imageUrl !== undefined)?.data as any)?.imageUrl || '';
+            // Collect text and images from all upstream nodes
+            let latestPrompt = '';
+            const collectedImageUrls: string[] = [];
+
+            for (const node of sourceNodes) {
+                const d = node.data as any;
+                // textInputNode: data.text
+                // textNode (result): data.output
+                if (d.text) {
+                    latestPrompt = d.text;
+                } else if (d.output) {
+                    latestPrompt = typeof d.output === 'string' ? d.output : '';
+                }
+                // imageInputNode / imageNode: data.imageUrl
+                if (d.imageUrl && !collectedImageUrls.includes(d.imageUrl)) {
+                    collectedImageUrls.push(d.imageUrl);
+                }
+            }
+
+            const inputImages = collectedImageUrls.length > 0 ? collectedImageUrls : undefined;
 
             const promptToUse = latestPrompt || "A unique and creative concept";
             const count = (nodeData.type === 'text' || nodeData.type === 'image') ? nodeData.count : 1;
@@ -147,28 +168,31 @@ const UnifiedGeneratorNode = ({ id, data }: NodeProps) => {
 
                 switch (nodeData.type) {
                     case 'text':
-                        generationResults = await generateTextWithDmx(promptToUse, nodeData.model);
+                        generationResults = await generateTextWithDmx(promptToUse, nodeData.model, inputImages?.[0]);
                         break;
                     case 'image':
-                        generationResults = await generateImageWithDmx(nodeData.model, promptToUse, '1024x1024', latestImageUrl ? [latestImageUrl] : undefined);
+                        generationResults = await generateImageWithDmx(nodeData.model, promptToUse, '2K', inputImages);
                         break;
                     case 'video':
                         if (nodeData.model === 'kling') {
-                            generationResults = await generateVideoKling(promptToUse, nodeData.duration as 5 | 10, '9:16', latestImageUrl || undefined);
+                            generationResults = await generateVideoKling(promptToUse, nodeData.duration as 5 | 10, '9:16', inputImages?.[0]);
                         } else {
-                            generationResults = await generateVideoDoubao(promptToUse, '16:9', latestImageUrl || undefined, nodeData.duration as 5 | 10);
+                            generationResults = await generateVideoDoubao(promptToUse, '16:9', inputImages?.[0], nodeData.duration as 5 | 10);
                         }
                         break;
                     case 'audio':
                         generationResults = await textToSpeech(promptToUse, { model: nodeData.model, voice: nodeData.voice });
                         break;
-                    case 'music':
+                    case 'music': {
+                        // 前端显示 suno-v5，实际 API 调用 chirp-v5
+                        const apiMv = nodeData.model === 'suno-v5' ? 'chirp-v5' : nodeData.model;
                         if (nodeData.musicMode === 'inspiration') {
-                            generationResults = await generateMusicInspiration(promptToUse, { mv: nodeData.model });
+                            generationResults = await generateMusicInspiration(promptToUse, { mv: apiMv });
                         } else {
-                            generationResults = await generateMusicCustom(promptToUse, "Unified Music", { mv: nodeData.model });
+                            generationResults = await generateMusicCustom(promptToUse, "Unified Music", { mv: apiMv });
                         }
                         break;
+                    }
                 }
 
                 const resultsArray = Array.isArray(generationResults) ? generationResults : [generationResults];

@@ -14,56 +14,65 @@ const ensureApiKeyConfigured = (): void => {
   }
 };
 
-interface ImageGenerationsResponse {
-  model: string;
-  created: number;
-  data: Array<{
-    url?: string;
-    b64_json?: string;
-    size?: string;
-  }>;
-  usage?: Record<string, unknown>;
-  error?: { code?: string; message?: string };
-}
-
-export const generateImageSeedream4 = async (
+export const generateImageSeedream5 = async (
   prompt: string,
-  size: string = '1024x1024',
+  size: string = '2K',
   images?: string[]
-): Promise<string> => {
+): Promise<string | string[]> => {
   ensureApiKeyConfigured();
   try {
-    const resp = await axios.post<ImageGenerationsResponse>(
-      'https://www.dmxapi.cn/v1/images/generations',
+    const resp = await axios.post(
+      'https://www.dmxapi.cn/v1/responses',
       {
-        model: 'doubao-seedream-4-0-250828',
-        prompt,
+        model: 'doubao-seedream-5.0-lite',
+        input: prompt,
         image: images && images.length > 0 ? images : undefined,
-        sequential_image_generation: images && images.length > 0 ? 'auto' : 'disabled',
-        sequential_image_generation_options: images && images.length > 0 ? { max_images: 1 } : undefined,
-        response_format: 'url',
+        sequential_image_generation: 'disabled',
+        tools: [{ type: 'web_search' }],
         size,
         stream: false,
+        output_format: 'png',
+        response_format: 'url',
         watermark: false,
+        optimize_prompt_options: { mode: 'standard' },
       },
       { headers: buildHeaders() }
     );
-    const first = resp.data?.data?.[0];
-    if (first?.url) {
-      return first.url;
+
+    const data = resp.data as any;
+    const urls: string[] = [];
+
+    // 图片编辑/多图融合: output[].image_url.url
+    if (Array.isArray(data?.output)) {
+      for (const out of data.output) {
+        if (out.type === 'image_url' && out.image_url?.url) {
+          urls.push(out.image_url.url);
+        }
+        // 文生图: output[0].content[0].text 含 markdown 图片
+        if (out.content) {
+          for (const c of out.content) {
+            if (c.text) {
+              const matches = c.text.matchAll(/!\[.*?\]\((https?:\/\/[^\s)]+)\)/g);
+              for (const m of matches) {
+                if (m[1]) urls.push(m[1]);
+              }
+            }
+          }
+        }
+      }
     }
-    if (first?.b64_json) {
-      throw new Error('API 未返回图片 URL');
+
+    if (urls.length > 0) {
+      return urls.length === 1 ? urls[0] : urls;
     }
-    throw new Error('图片生成失败：未返回有效数据');
+
+    throw new Error(`图片生成失败：未返回有效数据`);
   } catch (error) {
     if (axios.isAxiosError(error)) {
-      const status = error.response?.status;
-      const data = error.response?.data as ImageGenerationsResponse | undefined;
-      console.error('[DMXAPI Seedream4] AxiosError', { status, data });
+      const data = error.response?.data as any;
       throw new Error(data?.error?.message || error.message || '图片生成失败');
     }
-    throw new Error('网络异常或未知错误');
+    throw error instanceof Error ? error : new Error('网络异常或未知错误');
   }
 };
 
@@ -103,11 +112,11 @@ export const generateImageNanoBanana = async (
 export const generateImageWithDmx = async (
   model: string,
   prompt: string,
-  size: string = '1024x1024',
+  size: string = '2K',
   images?: string[]
-): Promise<string> => {
-  if (model.startsWith('doubao-seedream-4-0')) {
-    return generateImageSeedream4(prompt, size, images);
+): Promise<string | string[]> => {
+  if (model.startsWith('doubao-seedream-5')) {
+    return generateImageSeedream5(prompt, size, images);
   }
   if (model.startsWith('gemini-2.5-flash-image')) {
     return generateImageNanoBanana(prompt, size, images);
