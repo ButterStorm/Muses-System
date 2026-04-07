@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Handle, Position, NodeProps, NodeResizer } from '@xyflow/react';
-import { Video, Download, Play } from 'lucide-react';
+import { Video, Download, Play, Copy, Check } from 'lucide-react';
 
 interface VideoNodeData {
   label: string;
@@ -12,10 +12,21 @@ interface VideoNodeData {
 
 const VideoNode = ({ data, selected }: NodeProps) => {
   const nodeData = data as unknown as VideoNodeData;
+  const [copied, setCopied] = React.useState(false);
 
   const handleDownload = () => {
     if (nodeData.videoUrl) {
       window.open(nodeData.videoUrl, '_blank');
+    }
+  };
+
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(nodeData.videoUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('复制链接失败:', err);
     }
   };
 
@@ -57,12 +68,22 @@ const VideoNode = ({ data, selected }: NodeProps) => {
                 <Play size={32} className="text-white drop-shadow-lg" fill="currentColor" />
               </div>
 
-              <button
-                onClick={handleDownload}
-                className="absolute bottom-3 right-3 p-2 bg-white/90 backdrop-blur-sm rounded-xl shadow-lg opacity-0 group-hover/video:opacity-100 translate-y-2 group-hover/video:translate-y-0 transition-all text-gray-700 hover:text-indigo-600"
-              >
-                <Download size={18} />
-              </button>
+              <div className="absolute bottom-3 right-3 flex items-center space-x-2 opacity-0 group-hover/video:opacity-100 translate-y-2 group-hover/video:translate-y-0 transition-all">
+                <button
+                  onClick={handleCopyLink}
+                  className="p-2 bg-white/90 backdrop-blur-sm rounded-xl shadow-lg text-gray-700 hover:text-indigo-600 transition-colors"
+                  title="复制链接"
+                >
+                  {copied ? <Check size={18} /> : <Copy size={18} />}
+                </button>
+                <button
+                  onClick={handleDownload}
+                  className="p-2 bg-white/90 backdrop-blur-sm rounded-xl shadow-lg text-gray-700 hover:text-indigo-600 transition-colors"
+                  title="下载"
+                >
+                  <Download size={18} />
+                </button>
+              </div>
             </>
           ) : (
             <div className="w-full h-full flex items-center justify-center text-gray-300">

@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Handle, Position, NodeProps } from '@xyflow/react';
-import { Volume2, Download, Play } from 'lucide-react';
+import { Volume2, Download, Play, Copy, Check } from 'lucide-react';
 
 interface AudioNodeData {
   label: string;
@@ -13,10 +13,21 @@ interface AudioNodeData {
 
 const AudioNode = ({ data }: NodeProps) => {
   const nodeData = data as unknown as AudioNodeData;
+  const [copied, setCopied] = React.useState(false);
 
   const handleDownload = () => {
     if (nodeData.audioUrl) {
       window.open(nodeData.audioUrl, '_blank');
+    }
+  };
+
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(nodeData.audioUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('复制链接失败:', err);
     }
   };
 
@@ -49,8 +60,16 @@ const AudioNode = ({ data }: NodeProps) => {
                 </div>
 
                 <button
+                  onClick={handleCopyLink}
+                  className="p-2 text-gray-400 hover:text-purple-600 hover:bg-white rounded-lg transition-all"
+                  title="复制链接"
+                >
+                  {copied ? <Check size={18} /> : <Copy size={18} />}
+                </button>
+                <button
                   onClick={handleDownload}
                   className="p-2 text-gray-400 hover:text-purple-600 hover:bg-white rounded-lg transition-all"
+                  title="下载"
                 >
                   <Download size={18} />
                 </button>

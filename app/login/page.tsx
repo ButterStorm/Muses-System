@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuthStore } from '@/stores/authStore';
-import { Loader2, Eye, EyeOff, ArrowLeft, ArrowRight } from 'lucide-react';
+import { Loader2, Eye, EyeOff, ArrowLeft, ArrowRight, Lock } from 'lucide-react';
 import Galaxy from '@/components/Galaxy';
 
 type PageMode = 'login' | 'register' | 'forgot' | 'reset';
@@ -43,6 +43,7 @@ function LoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [inviteCode, setInviteCode] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -67,6 +68,7 @@ function LoginForm() {
       setMode(next);
       setError('');
       setSuccess('');
+      setInviteCode('');
       setTransitioning(false);
     }, 180);
   }, []);
@@ -76,6 +78,15 @@ function LoginForm() {
     setError('');
     setSuccess('');
     setIsLoading(true);
+
+    // 验证邀请码
+    if (mode === 'login' || mode === 'register') {
+      if (inviteCode.trim() !== 'jasonhuang') {
+        setError('邀请码错误，请输入正确的邀请码');
+        setIsLoading(false);
+        return;
+      }
+    }
 
     if (mode === 'login') {
       const { error: authError } = await signIn(email, password);
@@ -305,6 +316,29 @@ function LoginForm() {
                     autoComplete="new-password"
                     className="login-input w-full bg-transparent border-0 border-b border-zinc-800 focus:border-emerald-400/50 text-white placeholder-zinc-700 text-[15px] py-3 px-0 focus:outline-none transition-colors"
                   />
+                </div>
+              )}
+
+              {/* 邀请码 */}
+              {(mode === 'login' || mode === 'register') && (
+                <div>
+                  <label className="block text-[10px] font-semibold text-zinc-500 tracking-[0.2em] uppercase mb-1.5">
+                    邀请码
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={inviteCode}
+                      onChange={(e) => setInviteCode(e.target.value)}
+                      placeholder="请输入邀请码"
+                      required
+                      className="login-input w-full bg-transparent border-0 border-b border-zinc-800 focus:border-emerald-400/50 text-white placeholder-zinc-700 text-[15px] py-3 pr-10 px-0 focus:outline-none transition-colors"
+                    />
+                    <div className="absolute right-0 top-1/2 -translate-y-1/2 p-2 text-zinc-700">
+                      <Lock className="w-4 h-4" />
+                    </div>
+                  </div>
+                  <p className="text-zinc-600 text-[10px] mt-1.5">需要邀请码才能继续</p>
                 </div>
               )}
 
