@@ -1,18 +1,21 @@
 import axios from 'axios';
-import { uploadBuffer } from '@/lib/storage';
 
-const DMX_API_KEY = process.env.NEXT_PUBLIC_DMX_API_KEY || process.env.NEXT_PUBLIC_302AI_API_KEY;
-
-const jsonHeaders = () => ({
-  Authorization: `Bearer ${DMX_API_KEY ?? ''}`,
-  'Content-Type': 'application/json',
+const axiosClient = axios.create({
+  baseURL: '/api',
 });
 
-const ensureKey = (): void => {
-  if (!DMX_API_KEY || DMX_API_KEY.trim().length === 0) {
-    throw new Error('DMXAPI 令牌未配置。请在 .env(.local) 中设置 NEXT_PUBLIC_DMX_API_KEY');
-  }
-};
+interface TextToSpeechResponse {
+  url: string;
+}
+
+interface SpeechToTextResponse {
+  text: string;
+}
+
+interface AudioError {
+  error: string;
+  details?: unknown;
+}
 
 export interface TextToSpeechOptions {
   model: string;
@@ -24,40 +27,51 @@ export interface SpeechToTextOptions {
   language?: string;
 }
 
+/**
+ * 文本转语音
+ * @param text - 要转换的文本
+ * @param options - TTS 选项
+ * @returns 音频 URL
+ */
 export const textToSpeech = async (
   text: string,
   options: TextToSpeechOptions = { model: 'speech-2.6-hd', voice: 'male-qn-qingse' }
 ): Promise<string> => {
-  ensureKey();
   try {
-    const response = await axios.post(
-      'https://www.dmxapi.cn/v1/audio/speech',
-      {
-        model: options.model,
-        input: text,
-        voice: options.voice,
-      },
-      {
-        headers: jsonHeaders(),
-        responseType: 'arraybuffer',
-      }
-    );
+    const response = await axiosClient.post<TextToSpeechResponse>('/audio/speech', {
+      text,
+      model: options.model,
+      voice: options.voice,
+    });
 
-    const audioBuffer = response.data as ArrayBuffer;
-    const url = await uploadBuffer(audioBuffer, 'audio/mpeg', 'mp3');
+    const url = response.data?.url;
+    if (!url) {
+      throw new Error('语音合成失败：未返回有效 URL');
+    }
+
     return url;
   } catch (error) {
     console.error('[TTS] 语音合成失败:', error);
+    if (axios.isAxiosError(error)) {
+      const data = error.response?.data as AudioError | undefined;
+      const message = data?.error || error.message || '语音合成失败';
+      throw new Error(message);
+    }
     const message = error instanceof Error ? error.message : '语音合成失败';
     throw new Error(message);
   }
 };
 
+/**
+ * 语音转文本
+ * @param audioFile - 音频文件
+ * @param options - STT 选项
+ * @returns 转录的文本
+ */
 export const speechToText = async (
   audioFile: Blob | File,
   options: SpeechToTextOptions = {}
 ): Promise<string> => {
-  ensureKey();
   try {
     const formData = new FormData();
     formData.append('file', audioFile);
@@ -66,32 +80,43 @@ export const speechToText = async (
       formData.append('language', options.language);
     }
 
-    const response = await axios.post(
-      'https://www.dmxapi.cn/v1/audio/transcriptions',
-      formData,
-      {
-        headers: {
-          Authorization: `Bearer ${DMX_API_KEY ?? ''}`,
-        },
-      }
-    );
+    const response = await axiosClient.post<SpeechToTextResponse>('/audio/transcribe', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
 
     return response.data?.text || '';
   } catch (error) {
     console.error('[STT] 语音转文字失败:', error);
+    if (axios.isAxiosError(error)) {
+      const data = error.response?.data as AudioError | undefined;
+      const message = data?.error || error.message || '语音转文字失败';
+      throw new Error(message);
+    }
     const message = error instanceof Error ? error.message : '语音转文字失败';
     throw new Error(message);
   }
 };
 
+/**
+ * 批量文本转语音
+ * @param texts - 要转换的文本数组
+ * @param options - TTS 选项
+ * @returns 音频 URL 数组
+ */
 export const batchTextToSpeech = async (
   texts: string[],
   options: TextToSpeechOptions = { model: 'speech-2.6-hd', voice: 'male-qn-qingse' }
 ): Promise<string[]> => {
-  const promises = texts.map(text => textToSpeech(text, options));
+  const promises = texts.map((text) => textToSpeech(text, options));
   return Promise.all(promises);
 };
 
+/**
+ * 获取可用的音色列表
+ * @returns 音色列表
+ */
 export const getAvailableVoices = () => {
   return [
     { id: 'male-qn-qingse', name: '男声-青涩青年', gender: 'male' },
