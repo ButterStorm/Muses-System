@@ -20,6 +20,9 @@ interface UnifiedNodeData {
     duration: number;
     voice: string;
     musicMode: MusicGenerationMode;
+    instrumental: boolean;
+    songTitle: string;
+    songTags: string;
     isLoading: boolean;
 }
 
@@ -58,7 +61,7 @@ const TYPE_CONFIG: Record<NodeType, { label: string; color: string; classes: { b
 
 const MODELS = {
     text: ['gpt-5-mini', 'deepseek-chat', 'kimi-k2.5', 'doubao-seed-1-8-251228'],
-    image: ['doubao-seedream-5.0-lite'],
+    image: ['doubao-seedream-5.0-lite', 'gemini-3-pro-image', 'gemini-2.5-flash-image'],
     video: ['kling', 'doubao'],
     audio: ['speech-2.6-hd', 'openai-tts-1'],
     music: ['suno-v5'],
@@ -78,6 +81,9 @@ const UnifiedGeneratorNode = ({ id, data }: NodeProps) => {
             duration: (data.duration as number) || 5,
             voice: (data.voice as string) || voices[0].id,
             musicMode: (data.musicMode as MusicGenerationMode) || 'inspiration',
+            instrumental: (data.instrumental as boolean) || false,
+            songTitle: (data.songTitle as string) || '',
+            songTags: (data.songTags as string) || '',
             isLoading: false,
         };
     });
@@ -101,13 +107,16 @@ const UnifiedGeneratorNode = ({ id, data }: NodeProps) => {
                             duration: nodeData.duration,
                             voice: nodeData.voice,
                             musicMode: nodeData.musicMode,
+                            instrumental: nodeData.instrumental,
+                            songTitle: nodeData.songTitle,
+                            songTags: nodeData.songTags,
                         },
                     };
                 }
                 return node;
             })
         );
-    }, [nodeData.label, nodeData.type, nodeData.model, nodeData.count, nodeData.duration, nodeData.voice, nodeData.musicMode, id, setNodes]);
+    }, [nodeData.label, nodeData.type, nodeData.model, nodeData.count, nodeData.duration, nodeData.voice, nodeData.musicMode, nodeData.instrumental, nodeData.songTitle, nodeData.songTags, id, setNodes]);
 
     const handleTypeChange = (type: NodeType) => {
         setNodeData(prev => ({
@@ -187,9 +196,15 @@ const UnifiedGeneratorNode = ({ id, data }: NodeProps) => {
                         // 前端显示 suno-v5，实际 API 调用 chirp-v5
                         const apiMv = nodeData.model === 'suno-v5' ? 'chirp-v5' : nodeData.model;
                         if (nodeData.musicMode === 'inspiration') {
-                            generationResults = await generateMusicInspiration(promptToUse, { mv: apiMv });
+                            generationResults = await generateMusicInspiration(promptToUse, {
+                                mv: apiMv,
+                                make_instrumental: nodeData.instrumental,
+                            });
                         } else {
-                            generationResults = await generateMusicCustom(promptToUse, "Unified Music", { mv: apiMv });
+                            generationResults = await generateMusicCustom(promptToUse, nodeData.songTitle || 'Untitled', {
+                                tags: nodeData.songTags || undefined,
+                                mv: apiMv,
+                            });
                         }
                         break;
                     }
@@ -341,20 +356,50 @@ const UnifiedGeneratorNode = ({ id, data }: NodeProps) => {
                             <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                         </div>
                     ) : nodeData.type === 'music' ? (
-                        <div className="flex items-center space-x-2">
-                            <button
-                                onClick={() => setNodeData(prev => ({ ...prev, musicMode: 'inspiration' }))}
-                                className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${nodeData.musicMode === 'inspiration' ? `${bgColor} text-white shadow-md` : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`}
-                            >
-                                灵感模式
-                            </button>
-                            <button
-                                onClick={() => setNodeData(prev => ({ ...prev, musicMode: 'custom' }))}
-                                className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${nodeData.musicMode === 'custom' ? `${bgColor} text-white shadow-md` : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`}
-                            >
-                                自定义模式
-                            </button>
-                        </div>
+                        <>
+                            <div className="flex items-center space-x-2">
+                                <button
+                                    onClick={() => setNodeData(prev => ({ ...prev, musicMode: 'inspiration' }))}
+                                    className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${nodeData.musicMode === 'inspiration' ? `${bgColor} text-white shadow-md` : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`}
+                                >
+                                    灵感模式
+                                </button>
+                                <button
+                                    onClick={() => setNodeData(prev => ({ ...prev, musicMode: 'custom' }))}
+                                    className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${nodeData.musicMode === 'custom' ? `${bgColor} text-white shadow-md` : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`}
+                                >
+                                    自定义模式
+                                </button>
+                            </div>
+                            {nodeData.musicMode === 'inspiration' ? (
+                                <div className="flex items-center justify-between px-1 py-1">
+                                    <span className="text-[11px] font-bold text-gray-400">纯音乐</span>
+                                    <button
+                                        onClick={() => setNodeData(prev => ({ ...prev, instrumental: !prev.instrumental }))}
+                                        className={`w-10 h-5 rounded-full transition-all duration-200 ${nodeData.instrumental ? bgColor : 'bg-gray-200'}`}
+                                    >
+                                        <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${nodeData.instrumental ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="space-y-2">
+                                    <input
+                                        type="text"
+                                        value={nodeData.songTitle}
+                                        onChange={(e) => setNodeData(prev => ({ ...prev, songTitle: e.target.value }))}
+                                        placeholder="歌曲标题"
+                                        className={`w-full px-3 py-1.5 bg-gray-50 border-none rounded-lg text-xs focus:ring-2 ${ringColor} transition-all text-gray-700 placeholder:text-gray-300`}
+                                    />
+                                    <input
+                                        type="text"
+                                        value={nodeData.songTags}
+                                        onChange={(e) => setNodeData(prev => ({ ...prev, songTags: e.target.value }))}
+                                        placeholder="风格标签，如 pop, upbeat"
+                                        className={`w-full px-3 py-1.5 bg-gray-50 border-none rounded-lg text-xs focus:ring-2 ${ringColor} transition-all text-gray-700 placeholder:text-gray-300`}
+                                    />
+                                </div>
+                            )}
+                        </>
                     ) : (
                         <div className="flex items-center space-x-2">
                             {[1, 2, 3, 4].map(n => (

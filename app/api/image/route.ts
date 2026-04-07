@@ -1,16 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import axios from 'axios';
+import sharp from 'sharp';
+import { uploadBuffer } from '@/lib/serverStorage';
 
 const DMX_API_KEY = process.env.DMX_API_KEY;
 const DMX_BASE_URL = 'https://www.dmxapi.cn';
 
 // 输入验证 schema
 const ImageGenerationSchema = z.object({
-  model: z.enum(['doubao-seedream-5.0-lite', 'gemini-2.5-flash-image']),
+  model: z.enum(['doubao-seedream-5.0-lite', 'gemini-2.5-flash-image', 'gemini-3-pro-image']),
   prompt: z.string().min(1).max(4000),
-  size: z.enum(['2K', '1024x1024', '1024x1536', '1536x1024']).default('2K'),
-  images: z.array(z.string().url()).max(4).optional(),
+  size: z.enum(['1K', '2K', '4K', '1024x1024', '1024x1536', '1536x1024']).default('2K'),
+  aspectRatio: z.enum(['1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9']).default('1:1'),
+  images: z.array(z.string().url()).max(6).optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -35,14 +38,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { model, prompt, size, images } = validationResult.data;
+    const { model, prompt, size, aspectRatio, images } = validationResult.data;
 
     let result: string | string[];
 
     if (model.startsWith('doubao-seedream')) {
       result = await generateSeedream5(prompt, size, images);
-    } else if (model.startsWith('gemini-2.5-flash-image')) {
-      result = await generateNanoBanana(prompt, size);
+    } else if (model.startsWith('gemini-')) {
+      const geminiModelMap: Record<string, string> = {
+        'gemini-2.5-flash-image': 'gemini-2.5-flash-image',
+        'gemini-3-pro-image': 'gemini-3-pro-image-preview',
+      };
+      const geminiModel = geminiModelMap[model] || model;
+      result = await generateGeminiImage(geminiModel, prompt, images);
     } else {
       return NextResponse.json(
         { error: '不支持的图片模型' },
@@ -128,31 +136,86 @@ async function generateSeedream5(
   return urls.length === 1 ? urls[0] : urls;
 }
 
-async function generateNanoBanana(prompt: string, size: string): Promise<string> {
+async function generateGeminiImage(
+  model: string,
+  prompt: string,
+  images?: string[]
+): Promise<string> {
+  const parts: any[] = [{ text: prompt }];
+
+  if (images && images.length > 0) {
+    for (const imageUrl of images.slice(0, 6)) {
+      const imgRes = await axios.get(imageUrl, { responseType: 'arraybuffer' });
+      const mimeType = (imgRes.headers['content-type'] as string) || 'image/png';
+      const base64 = Buffer.from(imgRes.data, 'binary').toString('base64');
+      parts.push({ inlineData: { mimeType, data: base64 } });
+    }
+  }
+
   const response = await axios.post(
-    `${DMX_BASE_URL}/v1beta/models/gemini-2.5-flash-image`,
+    `${DMX_BASE_URL}/v1beta/models/${model}:generateContent`,
     {
-      contents: [{ parts: [{ text: prompt }] }],
+      contents: [{ parts }],
+      generationConfig: {
+        responseModalities: ['Text', 'Image'],
+      },
     },
     {
       headers: {
         Authorization: `Bearer ${DMX_API_KEY}`,
         'Content-Type': 'application/json',
       },
-      responseType: 'arraybuffer',
     }
   );
 
-  const ct = (response.headers['content-type'] || '').toString();
-  if (ct.startsWith('image/')) {
-    const buffer = response.data as ArrayBuffer;
-    const bytes = new Uint8Array(buffer);
-    let binary = '';
-    for (let i = 0; i < bytes.length; i++) {
-      binary += String.fromCharCode(bytes[i]);
-    }
-    return `data:${ct.split(';')[0]};base64,${btoa(binary)}`;
+  const data = response.data;
+
+  const candidates = data?.candidates;
+  if (!candidates || candidates.length === 0) {
+    console.error(`[Gemini ${model}] full response:`, JSON.stringify(data).substring(0, 500));
+    throw new Error(`${model} 图片生成失败：无候选结果`);
   }
 
-  throw new Error('图片生成失败');
+  for (const candidate of candidates) {
+    const cParts = candidate?.content?.parts;
+    if (!cParts) continue;
+    for (const part of cParts) {
+      const inlineData = part.inlineData || part.inline_data;
+      if (inlineData?.data) {
+        // base64 → Buffer → sharp 压缩 → 上传 Supabase → 返回 URL
+        const imgBuffer = Buffer.from(inlineData.data, 'base64');
+        const compressed = await compressAndConvert(imgBuffer);
+        return await uploadBuffer(compressed, 'image/jpeg', 'jpg');
+      }
+    }
+  }
+
+  console.error(`[Gemini ${model}] response structure:`, JSON.stringify(data, null, 2).substring(0, 800));
+  throw new Error(`${model} 图片生成失败：响应中无图片数据`);
+}
+
+/**
+ * 用 sharp 压缩图片到 300KB 以内（和前端 compressImage 逻辑一致）
+ */
+async function compressAndConvert(buffer: Buffer): Promise<ArrayBuffer> {
+  const TARGET_SIZE = 300 * 1024; // 300KB
+
+  let quality = 80;
+  let result: Buffer = await sharp(buffer)
+    .resize(2048, 2048, { fit: 'inside', withoutEnlargement: true })
+    .jpeg({ quality })
+    .toBuffer();
+
+  while (result.length > TARGET_SIZE && quality > 10) {
+    quality -= 10;
+    result = await sharp(buffer)
+      .resize(2048, 2048, { fit: 'inside', withoutEnlargement: true })
+      .jpeg({ quality })
+      .toBuffer();
+  }
+
+  // transfer to ArrayBuffer for uploadBuffer
+  const ab = new ArrayBuffer(result.length);
+  new Uint8Array(ab).set(result);
+  return ab;
 }

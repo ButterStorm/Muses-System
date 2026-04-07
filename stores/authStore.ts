@@ -22,7 +22,7 @@ if (typeof window !== 'undefined') {
     const store = useAuthStore.getState();
     if (event === 'SIGNED_IN' && session?.user) {
       store.setUser(session.user as User);
-    } else if (event === 'SIGNED_OUT') {
+    } else if (event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED' && !session) {
       store.setUser(null);
     }
   });
@@ -150,22 +150,26 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   checkAuth: async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session }, error } = await supabase.auth.getSession();
 
-      if (session?.user) {
-        set({
-          user: session.user as User,
-          isAuthenticated: true,
-          isLoading: false
-        });
-      } else {
+      if (error || !session?.user) {
+        // 清除无效的 session，防止 refresh token 反复报错
+        await supabase.auth.signOut().catch(() => {});
         set({
           user: null,
           isAuthenticated: false,
           isLoading: false
         });
+        return;
       }
+
+      set({
+        user: session.user as User,
+        isAuthenticated: true,
+        isLoading: false
+      });
     } catch (err) {
+      await supabase.auth.signOut().catch(() => {});
       set({
         user: null,
         isAuthenticated: false,
