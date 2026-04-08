@@ -71,13 +71,37 @@ const translations = {
   }
 };
 
-const UserNav: React.FC = () => {
+const UserNav: React.FC<{ className?: string }> = ({ className }) => {
   const { user, isAuthenticated, isLoading, signOut, checkAuth } = useAuthStore();
   const [isOpen, setIsOpen] = useState(false);
+  const [expiresAt, setExpiresAt] = useState<string | null>(null);
 
   useEffect(() => {
     checkAuth();
   }, [checkAuth]);
+
+  useEffect(() => {
+    if (isAuthenticated && user?.id) {
+      fetch('/api/invite-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: '', userId: user.id, action: 'check' }),
+      })
+        .then(res => res.ok ? res.json() : null)
+        .then(data => {
+          if (data?.expires_at) setExpiresAt(data.expires_at);
+        })
+        .catch(() => {});
+    }
+  }, [isAuthenticated, user?.id]);
+
+  const getRemainingDays = () => {
+    if (!expiresAt) return null;
+    const diff = new Date(expiresAt).getTime() - Date.now();
+    if (diff <= 0) return '已过期';
+    const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+    return `${days}天`;
+  };
 
   if (isLoading) {
     return (
@@ -107,7 +131,7 @@ const UserNav: React.FC = () => {
   }
 
   return (
-    <div className="relative">
+    <div className={`relative ${className || ''}`}>
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center gap-2 text-gray-300 hover:text-white transition-colors"
@@ -123,14 +147,14 @@ const UserNav: React.FC = () => {
             className="fixed inset-0 z-40"
             onClick={() => setIsOpen(false)}
           />
-          <div className="absolute right-0 top-full mt-2 w-40 bg-white rounded-xl shadow-lg border border-gray-200 py-2 z-50">
-            <Link
-              href="/canvas"
-              className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-              onClick={() => setIsOpen(false)}
-            >
-              我的画布
-            </Link>
+          <div className="absolute left-0 top-full mt-2 w-40 bg-white rounded-xl shadow-lg border border-gray-200 py-2 z-50">
+            <div className="px-4 py-2 text-sm text-gray-500 flex items-center justify-between">
+              <span>有效期</span>
+              <span className="text-gray-800 font-medium">
+                {getRemainingDays() || '未知'}
+              </span>
+            </div>
+            <div className="border-t border-gray-100 my-1" />
             <button
               onClick={() => {
                 signOut();
@@ -183,7 +207,7 @@ const LandingPage: React.FC = () => {
             </button>
           </nav>
 
-          <UserNav />
+          <UserNav className="ml-auto" />
         </div>
       </header>
 

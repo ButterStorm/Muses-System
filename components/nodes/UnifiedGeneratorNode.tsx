@@ -63,7 +63,7 @@ const MODELS = {
     text: ['gpt-5-mini', 'deepseek-chat', 'kimi-k2.5', 'doubao-seed-1-8-251228'],
     image: ['doubao-seedream-5.0-lite', 'gemini-3-pro-image', 'gemini-2.5-flash-image'],
     video: ['kling', 'doubao'],
-    audio: ['speech-2.6-hd', 'openai-tts-1'],
+    audio: ['speech-2.6-hd'],
     music: ['suno-v5'],
 };
 

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, Suspense } from 'react';
+import React, { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuthStore } from '@/stores/authStore';
@@ -50,6 +50,7 @@ function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [transitioning, setTransitioning] = useState(false);
   const [visible, setVisible] = useState(false);
+  const loginInProgress = useRef(false);
 
   useEffect(() => {
     const timer = requestAnimationFrame(() => setVisible(true));
@@ -57,7 +58,7 @@ function LoginForm() {
   }, []);
 
   useEffect(() => {
-    if (isAuthenticated && mode !== 'reset') {
+    if (isAuthenticated && !loginInProgress.current && mode !== 'reset') {
       router.push('/');
     }
   }, [isAuthenticated, router, mode]);
@@ -79,26 +80,75 @@ function LoginForm() {
     setSuccess('');
     setIsLoading(true);
 
-    // 验证邀请码
+    // 验证激活码（登录/注册时必填）
     if (mode === 'login' || mode === 'register') {
-      if (inviteCode.trim() !== 'jasonhuang') {
-        setError('邀请码错误，请输入正确的邀请码');
+      if (!inviteCode.trim()) {
+        setError('请输入邀请码');
         setIsLoading(false);
         return;
       }
     }
 
     if (mode === 'login') {
+      loginInProgress.current = true;
       const { error: authError } = await signIn(email, password);
-      if (authError) setError(authError);
+      if (authError) {
+        setError(authError);
+        loginInProgress.current = false;
+      } else {
+        // 登录成功，验证并激活邀请码
+        const userId = useAuthStore.getState().user?.id;
+        if (!userId) {
+          setError('获取用户信息失败');
+          loginInProgress.current = false;
+        } else {
+          const res = await fetch('/api/invite-code', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code: inviteCode.trim(), userId }),
+          });
+          if (!res.ok) {
+            const data = await res.json();
+            setError(data.error || '激活码验证失败');
+            await useAuthStore.getState().signOut();
+          } else {
+            loginInProgress.current = false;
+            router.push('/');
+            return;
+          }
+          loginInProgress.current = false;
+        }
+      }
     } else if (mode === 'register') {
+      loginInProgress.current = true;
       const { error: authError, needsConfirmation } = await signUp(email, password);
       if (authError) {
         setError(authError);
-      } else if (needsConfirmation) {
-        setSuccess('注册成功！请检查您的邮箱并点击验证链接完成注册。');
-        setEmail('');
-        setPassword('');
+        loginInProgress.current = false;
+      } else {
+        const userId = useAuthStore.getState().user?.id;
+        if (!userId) {
+          setSuccess('注册成功！请检查您的邮箱并点击验证链接完成注册。');
+          setEmail('');
+          setPassword('');
+          loginInProgress.current = false;
+        } else {
+          const res = await fetch('/api/invite-code', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code: inviteCode.trim(), userId }),
+          });
+          if (!res.ok) {
+            const data = await res.json();
+            setError(data.error || '激活码验证失败');
+            await useAuthStore.getState().signOut();
+          } else {
+            loginInProgress.current = false;
+            router.push('/');
+            return;
+          }
+          loginInProgress.current = false;
+        }
       }
     } else if (mode === 'forgot') {
       const { error: authError } = await resetPasswordEmail(email);
