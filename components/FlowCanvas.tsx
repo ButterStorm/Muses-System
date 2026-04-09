@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ReactFlow,
   addEdge,
@@ -29,6 +29,15 @@ import Toolbar from './Toolbar';
 import AgentPanel from './AgentPanel';
 import { useProjectStore } from '@/stores/projectStore';
 import { useAuthStore } from '@/stores/authStore';
+import { toast } from 'sonner';
+
+// 撤销/重做历史管理
+interface HistoryEntry {
+  nodes: Node[];
+  edges: Edge[];
+}
+
+const MAX_HISTORY = 50;
 
 const nodeTypes = {
   textNode: TextNode,
@@ -80,11 +89,145 @@ const FlowInner: React.FC<FlowCanvasProps> = ({ projectId }) => {
   // 有 projectId = 打开已保存项目，用空数组避免默认节点覆盖存储数据
   const [nodes, setNodes, onNodesChange] = useNodesState(projectId ? [] : initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(projectId ? [] : initialEdges);
-  const { fitView, getViewport } = useReactFlow();
+  const { fitView, getViewport, deleteElements, getNodes, getEdges } = useReactFlow();
 
   const { currentProject, setCurrentProject, setDirty, loadProject, createProject, saveProject, renameProject } = useProjectStore();
   const { user } = useAuthStore();
   const loadedRef = useRef<string | null>(null);
+  const clipboardRef = useRef<Node[]>([]);
+
+  // 撤销/重做状态
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+  const isUndoRedoRef = useRef(false);
+  const lastSnapshotTime = useRef(0);
+
+  // 创建历史快照（节流：至少间隔 500ms）
+  const pushHistory = useCallback((currentNodes: Node[], currentEdges: Edge[]) => {
+    const now = Date.now();
+    if (now - lastSnapshotTime.current < 500) return;
+    lastSnapshotTime.current = now;
+
+    setHistory(prev => {
+      // 截断 redo 部分
+      const truncated = prev.slice(0, historyIndex + 1);
+      const newEntry: HistoryEntry = {
+        nodes: JSON.parse(JSON.stringify(currentNodes)),
+        edges: JSON.parse(JSON.stringify(currentEdges)),
+      };
+      const updated = [...truncated, newEntry];
+      // 限制历史长度
+      if (updated.length > MAX_HISTORY) updated.shift();
+      return updated;
+    });
+    setHistoryIndex(prev => Math.min(prev + 1, MAX_HISTORY - 1));
+  }, [historyIndex]);
+
+  // 撤销
+  const undo = useCallback(() => {
+    if (historyIndex <= 0) return;
+    isUndoRedoRef.current = true;
+    const newIndex = historyIndex - 1;
+    const entry = history[newIndex];
+    if (entry) {
+      setNodes(JSON.parse(JSON.stringify(entry.nodes)));
+      setEdges(JSON.parse(JSON.stringify(entry.edges)));
+      setHistoryIndex(newIndex);
+    }
+    setTimeout(() => { isUndoRedoRef.current = false; }, 100);
+  }, [history, historyIndex, setNodes, setEdges]);
+
+  // 重做
+  const redo = useCallback(() => {
+    if (historyIndex >= history.length - 1) return;
+    isUndoRedoRef.current = true;
+    const newIndex = historyIndex + 1;
+    const entry = history[newIndex];
+    if (entry) {
+      setNodes(JSON.parse(JSON.stringify(entry.nodes)));
+      setEdges(JSON.parse(JSON.stringify(entry.edges)));
+      setHistoryIndex(newIndex);
+    }
+    setTimeout(() => { isUndoRedoRef.current = false; }, 100);
+  }, [history, historyIndex, setNodes, setEdges]);
+
+  // 键盘快捷键
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const isCtrl = e.ctrlKey || e.metaKey;
+
+      // Ctrl+Z 撤销
+      if (isCtrl && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        undo();
+        return;
+      }
+
+      // Ctrl+Y 或 Ctrl+Shift+Z 重做
+      if (isCtrl && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+        e.preventDefault();
+        redo();
+        return;
+      }
+
+      // Ctrl+S 保存
+      if (isCtrl && e.key === 's') {
+        e.preventDefault();
+        handleSave();
+        toast.success('项目已保存');
+        return;
+      }
+
+      // Delete 删除选中节点
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        // 不在输入框中才删除
+        const target = e.target as HTMLElement;
+        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
+        const selectedNodes = getNodes().filter(n => n.selected);
+        const selectedEdges = getEdges().filter(e => e.selected);
+        if (selectedNodes.length > 0 || selectedEdges.length > 0) {
+          pushHistory(getNodes(), getEdges());
+          deleteElements({ nodes: selectedNodes, edges: selectedEdges });
+        }
+      }
+
+      // Ctrl+C 复制选中节点
+      if (isCtrl && e.key === 'c') {
+        const target = e.target as HTMLElement;
+        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
+        const selected = getNodes().filter(n => n.selected);
+        if (selected.length > 0) {
+          clipboardRef.current = JSON.parse(JSON.stringify(selected));
+          toast.success(`已复制 ${selected.length} 个节点`);
+        }
+      }
+
+      // Ctrl+V 粘贴节点
+      if (isCtrl && e.key === 'v') {
+        const target = e.target as HTMLElement;
+        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
+        const copied = clipboardRef.current;
+        if (copied.length === 0) return;
+        pushHistory(getNodes(), getEdges());
+        const idMap = new Map<string, string>();
+        const newNodes = copied.map(n => {
+          const newId = `node-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+          idMap.set(n.id, newId);
+          return {
+            ...JSON.parse(JSON.stringify(n)),
+            id: newId,
+            position: { x: n.position.x + 40, y: n.position.y + 40 },
+            selected: false,
+          };
+        });
+        setNodes(nds => [...nds, ...newNodes]);
+        toast.success(`已粘贴 ${newNodes.length} 个节点`);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [undo, redo, getNodes, getEdges, deleteElements, pushHistory]);
 
   // 加载已有项目
   useEffect(() => {
@@ -103,11 +246,13 @@ const FlowInner: React.FC<FlowCanvasProps> = ({ projectId }) => {
     }
   }, [projectId]);
 
-  // 标记脏状态
+  // 标记脏状态 + 推送历史快照
   useEffect(() => {
+    if (isUndoRedoRef.current) return;
     if (currentProject) {
       setDirty(true);
     }
+    pushHistory(nodes, edges);
   }, [nodes, edges]);
 
   const onConnect = useCallback(
@@ -157,8 +302,16 @@ const FlowInner: React.FC<FlowCanvasProps> = ({ projectId }) => {
     }
 
     const flowData = {
-      nodes: nodes.map(({ data, id, position, type, style }) => ({
-        id, type, position, style, data,
+      nodes: nodes.map((node) => ({
+        id: node.id,
+        type: node.type,
+        position: node.position,
+        style: {
+          ...node.style,
+          ...(node.width ? { width: node.width } : {}),
+          ...(node.height ? { height: node.height } : {}),
+        },
+        data: node.data,
       })),
       edges: edges.map(({ id, source, target, sourceHandle, targetHandle, type, animated, style }) => ({
         id, source, target, sourceHandle, targetHandle, type, animated, style,

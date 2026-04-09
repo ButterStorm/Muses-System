@@ -15,10 +15,6 @@ interface ChatCompletionsError {
 
 /**
  * 使用服务端 API 路由生成文本
- * @param prompt - 提示词
- * @param model - 模型名称
- * @param imageUrl - 可选的图片 URL（用于多模态）
- * @returns 生成的文本
  */
 export const generateTextWithDmx = async (
   prompt: string,

@@ -46,7 +46,7 @@ const TextNode = ({ data, id, selected }: NodeProps) => {
       />
 
       <div className="absolute -top-6 left-1 text-[11px] font-bold text-gray-400 uppercase tracking-widest pointer-events-none transition-opacity group-hover:opacity-100 opacity-60">
-        文本生成结果
+        {nodeData.label || '生成结果'}
       </div>
 
       <div className="bg-white/90 backdrop-blur-md rounded-2xl shadow-xl border border-blue-100 p-4 h-full w-full relative transition-all duration-300 hover:shadow-2xl hover:border-blue-200 flex flex-col overflow-hidden">

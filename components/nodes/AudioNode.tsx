@@ -35,7 +35,7 @@ const AudioNode = ({ data }: NodeProps) => {
     <div className="group relative">
       <div className="mb-2 ml-1 text-[11px] font-bold text-gray-400 uppercase tracking-widest flex items-center space-x-1">
         <Volume2 size={12} />
-        <span>音频生成结果</span>
+        <span>{nodeData.label || '音频生成结果'}</span>
       </div>
 
       <div className="bg-white/90 backdrop-blur-md rounded-[2rem] shadow-2xl border border-purple-100 p-2 w-72 transition-all duration-300 hover:shadow-3xl hover:border-purple-200">

@@ -122,10 +122,15 @@ async function generateKlingVideo(
     throw new Error('可灵提交失败: 无法提取任务ID');
   }
 
-  // 轮询结果
+  // 轮询结果（最大 10 分钟）
   const getModel = isImage2Video ? 'kling-image2video-get' : 'kling-text2video-get';
-  for (let i = 0; i < 120; i++) {
-    await new Promise((r) => setTimeout(r, 5000));
+  const maxTotalTime = 10 * 60 * 1000;
+  const startTime = Date.now();
+  let attempt = 0;
+  while (Date.now() - startTime < maxTotalTime) {
+    const delay = Math.min(5000 * Math.pow(1.2, attempt), 15000);
+    await new Promise((r) => setTimeout(r, delay));
+    attempt++;
     try {
       const videoUrl = await pollKlingStream(taskId, getModel);
       if (videoUrl) return videoUrl;
@@ -271,9 +276,14 @@ async function generateDoubaoVideo(
     throw new Error(`豆包提交失败: ${msg}`);
   }
 
-  // 轮询结果
-  for (let i = 0; i < 120; i++) {
-    await new Promise((r) => setTimeout(r, 5000));
+  // 轮询结果（最大 10 分钟）
+  const maxTotalTime = 10 * 60 * 1000;
+  const startTime = Date.now();
+  let attempt = 0;
+  while (Date.now() - startTime < maxTotalTime) {
+    const delay = Math.min(5000 * Math.pow(1.2, attempt), 15000);
+    await new Promise((r) => setTimeout(r, delay));
+    attempt++;
     try {
       const videoUrl = await pollDoubaoStream(taskId);
       if (videoUrl) return videoUrl;

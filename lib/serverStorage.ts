@@ -4,6 +4,22 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 const BUCKET = 'test';
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
+const ALLOWED_MIME_TYPES: string[] = [
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/gif',
+  'audio/mpeg',
+  'audio/wav',
+  'audio/ogg',
+  'audio/mp4',
+  'video/mp4',
+  'video/webm',
+  'application/pdf',
+  'application/json',
+];
 
 /**
  * 创建服务端 Supabase 客户端
@@ -33,6 +49,16 @@ export async function uploadBuffer(
   contentType: string,
   ext: string
 ): Promise<string> {
+  // 文件大小检查
+  if (buffer.byteLength > MAX_FILE_SIZE) {
+    throw new Error(`文件大小超过限制（最大 ${MAX_FILE_SIZE / 1024 / 1024}MB）`);
+  }
+
+  // MIME 类型检查
+  if (!ALLOWED_MIME_TYPES.includes(contentType)) {
+    throw new Error(`不支持的文件类型: ${contentType}`);
+  }
+
   const supabase = getServerClient();
   const timestamp = Date.now();
   const random = Math.random().toString(36).slice(2, 8);

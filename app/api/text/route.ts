@@ -6,7 +6,6 @@ const DMX_API_KEY = process.env.DMX_API_KEY;
 const DMX_BASE_URL = 'https://www.dmxapi.cn/v1';
 const DMX_DOUBAO_TEXT_MODEL = process.env.DMX_DOUBAO_TEXT_MODEL || 'doubao-1.6-chat';
 
-// 输入验证 schema
 const TextGenerationSchema = z.object({
   prompt: z.string().min(1).max(8000),
   model: z.enum([
@@ -14,6 +13,7 @@ const TextGenerationSchema = z.object({
     'deepseek-chat',
     'kimi-k2.5',
     'doubao',
+    'doubao-seed-1-8-251228',
     'gemini-3-flash',
     'gemini-3-pro'
   ]),
@@ -22,7 +22,6 @@ const TextGenerationSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    // 验证 API Key 配置
     if (!DMX_API_KEY) {
       return NextResponse.json(
         { error: '服务器配置错误：API Key 未配置' },
@@ -30,10 +29,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 解析请求体
     const body = await request.json();
-
-    // 验证输入
     const validationResult = TextGenerationSchema.safeParse(body);
     if (!validationResult.success) {
       return NextResponse.json(
@@ -43,9 +39,8 @@ export async function POST(request: NextRequest) {
     }
 
     const { prompt, model, imageUrl } = validationResult.data;
-    const resolvedModel = model === 'doubao' ? DMX_DOUBAO_TEXT_MODEL : model;
+    const resolvedModel = (model === 'doubao' || model === 'doubao-seed-1-8-251228') ? DMX_DOUBAO_TEXT_MODEL : model;
 
-    // 构建消息内容
     let content: string | Array<{ type: string; text?: string; image_url?: { url: string } }>;
     if (imageUrl) {
       content = [
@@ -69,7 +64,6 @@ export async function POST(request: NextRequest) {
       requestBody.reasoning_effort = 'low';
     }
 
-    // 调用 DMX API
     const response = await axios.post(
       `${DMX_BASE_URL}/chat/completions`,
       requestBody,

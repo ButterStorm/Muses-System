@@ -6,69 +6,13 @@ import { ChevronDown, Loader2, Play } from 'lucide-react';
 import { generateTextWithDmx } from '@/services/TextService';
 import { generateImageWithDmx } from '@/services/ImageService';
 import { generateVideoKling, generateVideoDoubao } from '@/services/VideoService';
-import { textToSpeech, getAvailableVoices } from '@/services/AudioService';
+import { textToSpeech } from '@/services/AudioService';
 import { generateMusicInspiration, generateMusicCustom } from '@/services/MusicService';
-
-type NodeType = 'text' | 'image' | 'video' | 'audio' | 'music';
-type MusicGenerationMode = 'inspiration' | 'custom';
-
-interface UnifiedNodeData {
-    label: string;
-    type: NodeType;
-    model: string;
-    count: number;
-    duration: number;
-    voice: string;
-    musicMode: MusicGenerationMode;
-    instrumental: boolean;
-    songTitle: string;
-    songTags: string;
-    isLoading: boolean;
-}
-
-const TYPE_CONFIG: Record<NodeType, { label: string; color: string; classes: { border: string; bg: string; bgMuted: string; text: string; textMuted: string; ring: string }; icon: string }> = {
-    text: {
-        label: '文生文',
-        color: 'blue',
-        classes: { border: 'border-blue-400', bg: 'bg-blue-500', bgMuted: 'bg-blue-50/50', text: 'text-blue-600', textMuted: 'text-blue-400', ring: 'focus:ring-blue-500/20' },
-        icon: 'text'
-    },
-    image: {
-        label: '文生图',
-        color: 'green',
-        classes: { border: 'border-green-400', bg: 'bg-green-500', bgMuted: 'bg-green-50/50', text: 'text-green-600', textMuted: 'text-green-400', ring: 'focus:ring-green-500/20' },
-        icon: 'image'
-    },
-    video: {
-        label: '文生视频',
-        color: 'indigo',
-        classes: { border: 'border-indigo-400', bg: 'bg-indigo-500', bgMuted: 'bg-indigo-50/50', text: 'text-indigo-600', textMuted: 'text-indigo-400', ring: 'focus:ring-indigo-500/20' },
-        icon: 'video'
-    },
-    audio: {
-        label: '文生音效',
-        color: 'purple',
-        classes: { border: 'border-purple-400', bg: 'bg-purple-500', bgMuted: 'bg-purple-50/50', text: 'text-purple-600', textMuted: 'text-purple-400', ring: 'focus:ring-purple-500/20' },
-        icon: 'audio'
-    },
-    music: {
-        label: '文生音乐',
-        color: 'orange',
-        classes: { border: 'border-orange-400', bg: 'bg-orange-500', bgMuted: 'bg-orange-50/50', text: 'text-orange-600', textMuted: 'text-orange-400', ring: 'focus:ring-orange-500/20' },
-        icon: 'music'
-    },
-};
-
-const MODELS = {
-    text: ['gpt-5-mini', 'deepseek-chat', 'kimi-k2.5', 'doubao-seed-1-8-251228'],
-    image: ['doubao-seedream-5.0-lite', 'gemini-3-pro-image', 'gemini-2.5-flash-image'],
-    video: ['kling', 'doubao'],
-    audio: ['speech-2.6-hd'],
-    music: ['suno-v5'],
-};
+import { TYPE_CONFIG, MODELS } from './unified-types';
+import type { NodeType, MusicGenerationMode, UnifiedNodeData } from './unified-types';
+import ConfigPanel from './ConfigPanel';
 
 const UnifiedGeneratorNode = ({ id, data }: NodeProps) => {
-    const voices = getAvailableVoices();
     const { addNodes, addEdges, getNode, getEdges, getNodes, setNodes } = useReactFlow();
 
     const [nodeData, setNodeData] = useState<UnifiedNodeData>(() => {
@@ -79,7 +23,7 @@ const UnifiedGeneratorNode = ({ id, data }: NodeProps) => {
             model: (data.model as string) || MODELS[nodeType]?.[0] || MODELS.text[0],
             count: (data.count as number) || 1,
             duration: (data.duration as number) || 5,
-            voice: (data.voice as string) || voices[0].id,
+            voice: (data.voice as string) || 'male-qn-qingse',
             musicMode: (data.musicMode as MusicGenerationMode) || 'inspiration',
             instrumental: (data.instrumental as boolean) || false,
             songTitle: (data.songTitle as string) || '',
@@ -142,27 +86,23 @@ const UnifiedGeneratorNode = ({ id, data }: NodeProps) => {
 
             const sourceNodes = nodes.filter(node => sourceNodeIds.includes(node.id));
 
-            // Collect text and images from all upstream nodes
             let latestPrompt = '';
             const collectedImageUrls: string[] = [];
 
             for (const node of sourceNodes) {
-                const d = node.data as any;
-                // textInputNode: data.text
-                // textNode (result): data.output
+                const d = node.data as Record<string, unknown>;
                 if (d.text) {
-                    latestPrompt = d.text;
+                    latestPrompt = d.text as string;
                 } else if (d.output) {
                     latestPrompt = typeof d.output === 'string' ? d.output : '';
                 }
-                // imageInputNode / imageNode: data.imageUrl
-                if (d.imageUrl && !collectedImageUrls.includes(d.imageUrl)) {
-                    collectedImageUrls.push(d.imageUrl);
+                const imgUrl = d.imageUrl as string | undefined;
+                if (imgUrl && !collectedImageUrls.includes(imgUrl)) {
+                    collectedImageUrls.push(imgUrl);
                 }
             }
 
             const inputImages = collectedImageUrls.length > 0 ? collectedImageUrls : undefined;
-
             const promptToUse = latestPrompt || "A unique and creative concept";
             const count = (nodeData.type === 'text' || nodeData.type === 'image') ? nodeData.count : 1;
 
@@ -173,7 +113,7 @@ const UnifiedGeneratorNode = ({ id, data }: NodeProps) => {
 
             let nodeCounter = 0;
             for (let i = 0; i < count; i++) {
-                let generationResults: any = '';
+                let generationResults: unknown = '';
 
                 switch (nodeData.type) {
                     case 'text':
@@ -193,7 +133,6 @@ const UnifiedGeneratorNode = ({ id, data }: NodeProps) => {
                         generationResults = await textToSpeech(promptToUse, { model: nodeData.model, voice: nodeData.voice });
                         break;
                     case 'music': {
-                        // 前端显示 suno-v5，实际 API 调用 chirp-v5
                         const apiMv = nodeData.model === 'suno-v5' ? 'chirp-v5' : nodeData.model;
                         if (nodeData.musicMode === 'inspiration') {
                             generationResults = await generateMusicInspiration(promptToUse, {
@@ -220,7 +159,7 @@ const UnifiedGeneratorNode = ({ id, data }: NodeProps) => {
                     };
 
                     let newNodeType = 'textNode';
-                    let newNodeData: any = { label: '生成结果', prompt: promptToUse };
+                    let newNodeData: Record<string, unknown> = { label: `${TYPE_CONFIG[nodeData.type].label} · ${nodeData.model}`, prompt: promptToUse };
 
                     switch (nodeData.type) {
                         case 'text':
@@ -241,8 +180,8 @@ const UnifiedGeneratorNode = ({ id, data }: NodeProps) => {
                             break;
                         case 'music':
                             newNodeType = 'musicNode';
-                            newNodeData.musicUrl = singleResult.audio_url;
-                            newNodeData.musicImageUrl = singleResult.image_url;
+                            newNodeData.musicUrl = (singleResult as Record<string, unknown>).audio_url;
+                            newNodeData.musicImageUrl = (singleResult as Record<string, unknown>).image_url;
                             newNodeData.isLoading = false;
                             break;
                     }
@@ -253,6 +192,7 @@ const UnifiedGeneratorNode = ({ id, data }: NodeProps) => {
                         position,
                         data: newNodeData,
                         ...(newNodeType === 'textNode' ? { style: { width: 288, height: 150 } } : {}),
+                        ...(newNodeType === 'videoNode' ? { style: { width: 288, height: 180 } } : {}),
                     });
 
                     addEdges({
@@ -268,9 +208,9 @@ const UnifiedGeneratorNode = ({ id, data }: NodeProps) => {
             }
 
             setNodeData(prev => ({ ...prev, isLoading: false }));
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error("Generation error:", error);
-            setErrorMessage(error.message || '生成失败');
+            setErrorMessage(error instanceof Error ? error.message : '生成失败');
             setNodeData(prev => ({ ...prev, isLoading: false }));
         }
     };
@@ -327,93 +267,7 @@ const UnifiedGeneratorNode = ({ id, data }: NodeProps) => {
                     </div>
                 </div>
 
-                <div className="space-y-1.5">
-                    <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider px-1">
-                        {nodeData.type === 'video' ? '时长 (秒)' : nodeData.type === 'audio' ? '音色' : nodeData.type === 'music' ? '模式' : '生成数量'}
-                    </div>
-
-                    {nodeData.type === 'video' ? (
-                        <div className="relative">
-                            <select
-                                value={nodeData.duration}
-                                onChange={(e) => setNodeData(prev => ({ ...prev, duration: Number(e.target.value) }))}
-                                className={`w-full pl-3 pr-8 py-2 bg-gray-50 border-none rounded-xl text-sm appearance-none focus:ring-2 ${ringColor} transition-all cursor-pointer font-medium text-gray-700`}
-                            >
-                                <option value={5}>5秒</option>
-                                <option value={10}>10秒</option>
-                            </select>
-                            <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-                        </div>
-                    ) : nodeData.type === 'audio' ? (
-                        <div className="relative">
-                            <select
-                                value={nodeData.voice}
-                                onChange={(e) => setNodeData(prev => ({ ...prev, voice: e.target.value }))}
-                                className={`w-full pl-3 pr-8 py-2 bg-gray-50 border-none rounded-xl text-sm appearance-none focus:ring-2 ${ringColor} transition-all cursor-pointer font-medium text-gray-700`}
-                            >
-                                {voices.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
-                            </select>
-                            <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-                        </div>
-                    ) : nodeData.type === 'music' ? (
-                        <>
-                            <div className="flex items-center space-x-2">
-                                <button
-                                    onClick={() => setNodeData(prev => ({ ...prev, musicMode: 'inspiration' }))}
-                                    className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${nodeData.musicMode === 'inspiration' ? `${bgColor} text-white shadow-md` : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`}
-                                >
-                                    灵感模式
-                                </button>
-                                <button
-                                    onClick={() => setNodeData(prev => ({ ...prev, musicMode: 'custom' }))}
-                                    className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${nodeData.musicMode === 'custom' ? `${bgColor} text-white shadow-md` : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`}
-                                >
-                                    自定义模式
-                                </button>
-                            </div>
-                            {nodeData.musicMode === 'inspiration' ? (
-                                <div className="flex items-center justify-between px-1 py-1">
-                                    <span className="text-[11px] font-bold text-gray-400">纯音乐</span>
-                                    <button
-                                        onClick={() => setNodeData(prev => ({ ...prev, instrumental: !prev.instrumental }))}
-                                        className={`w-10 h-5 rounded-full transition-all duration-200 ${nodeData.instrumental ? bgColor : 'bg-gray-200'}`}
-                                    >
-                                        <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${nodeData.instrumental ? 'translate-x-5' : 'translate-x-0.5'}`} />
-                                    </button>
-                                </div>
-                            ) : (
-                                <div className="space-y-2">
-                                    <input
-                                        type="text"
-                                        value={nodeData.songTitle}
-                                        onChange={(e) => setNodeData(prev => ({ ...prev, songTitle: e.target.value }))}
-                                        placeholder="歌曲标题"
-                                        className={`w-full px-3 py-1.5 bg-gray-50 border-none rounded-lg text-xs focus:ring-2 ${ringColor} transition-all text-gray-700 placeholder:text-gray-300`}
-                                    />
-                                    <input
-                                        type="text"
-                                        value={nodeData.songTags}
-                                        onChange={(e) => setNodeData(prev => ({ ...prev, songTags: e.target.value }))}
-                                        placeholder="风格标签，如 pop, upbeat"
-                                        className={`w-full px-3 py-1.5 bg-gray-50 border-none rounded-lg text-xs focus:ring-2 ${ringColor} transition-all text-gray-700 placeholder:text-gray-300`}
-                                    />
-                                </div>
-                            )}
-                        </>
-                    ) : (
-                        <div className="flex items-center space-x-2">
-                            {[1, 2, 3, 4].map(n => (
-                                <button
-                                    key={n}
-                                    onClick={() => setNodeData(prev => ({ ...prev, count: n }))}
-                                    className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${nodeData.count === n ? `${bgColor} text-white shadow-md` : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`}
-                                >
-                                    {n}
-                                </button>
-                            ))}
-                        </div>
-                    )}
-                </div>
+                <ConfigPanel nodeData={nodeData} setNodeData={setNodeData} bgColor={bgColor} ringColor={ringColor} />
 
                 <button
                     onClick={handleGenerate}

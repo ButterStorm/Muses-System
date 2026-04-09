@@ -31,7 +31,7 @@ const VideoNode = ({ data, selected }: NodeProps) => {
   };
 
   return (
-    <div className="group relative min-w-[200px] min-h-[150px]">
+    <div className="group relative">
       <NodeResizer
         color="#818cf8"
         isVisible={selected}
@@ -41,17 +41,17 @@ const VideoNode = ({ data, selected }: NodeProps) => {
 
       <div className="mb-2 ml-1 text-[11px] font-bold text-gray-400 uppercase tracking-widest flex items-center space-x-1">
         <Video size={12} />
-        <span>视频生成结果</span>
+        <span>{nodeData.label || '视频生成结果'}</span>
       </div>
 
-      <div className="bg-white/90 backdrop-blur-md rounded-[2rem] shadow-2xl border border-indigo-100 p-2 w-full h-full transition-all duration-300 hover:shadow-3xl hover:border-indigo-200 flex flex-col min-h-[inherit]">
+      <div className="bg-white/90 backdrop-blur-md rounded-[2rem] shadow-2xl border border-indigo-100 p-2 w-full transition-all duration-300 hover:shadow-3xl hover:border-indigo-200">
         <Handle
           type="target"
           position={Position.Left}
           className="!w-2 !h-2 !bg-indigo-300 !border-0"
         />
 
-        <div className="relative flex-1 rounded-[1.5rem] overflow-hidden bg-gray-50 group/video min-h-0">
+        <div className="relative aspect-video rounded-[1.5rem] overflow-hidden bg-gray-50 group/video">
           {nodeData.videoUrl ? (
             <>
               <video
