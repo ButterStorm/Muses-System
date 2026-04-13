@@ -1,27 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { ChatOpenAI } from '@langchain/openai';
-import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 
-const DMX_API_KEY = process.env.DMX_API_KEY;
-const DMX_BASE_URL = 'https://www.dmxapi.cn/v1';
-const AGENT_MODEL = process.env.AGENT_MODEL || 'gpt-5-mini';
+const DEEPAGENTS_BASE_URL = 'https://heterocat--deepagents-modal-web.modal.run';
 
 // 输入验证 schema
 const AgentChatSchema = z.object({
   message: z.string().min(1).max(4000),
+  model: z.string().optional(),
 });
 
 export async function POST(request: NextRequest) {
   try {
-    // 验证 API Key 配置
-    if (!DMX_API_KEY) {
-      return NextResponse.json(
-        { error: '服务器配置错误：API Key 未配置' },
-        { status: 500 }
-      );
-    }
-
     // 解析请求体
     const body = await request.json();
 
@@ -34,35 +23,35 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { message } = validationResult.data;
+    const { message, model } = validationResult.data;
 
-    // 初始化 ChatOpenAI
-    const chatModel = new ChatOpenAI({
-      apiKey: DMX_API_KEY,
-      configuration: {
-        baseURL: DMX_BASE_URL,
-      },
-      modelName: AGENT_MODEL,
-      temperature: 0.7,
+    // 调用 Deep Agents API
+    const response = await fetch(`${DEEPAGENTS_BASE_URL}/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a helpful AI assistant embedded in a creative canvas application called MusesSystem. You help users with their tasks, answer questions, and provide creative inspiration.'
+          },
+          { role: 'user', content: message }
+        ],
+        model: model || 'openai:gpt-4o'
+      }),
     });
 
-    const messages = [
-      new SystemMessage(
-        'You are a helpful AI assistant embedded in a creative canvas application called MusesSystem. You help users with their tasks, answer questions, and provide creative inspiration.'
-      ),
-      new HumanMessage(message),
-    ];
-
-    const response = await chatModel.invoke(messages);
-
-    let content: string;
-    if (typeof response.content === 'string') {
-      content = response.content;
-    } else {
-      content = Array.isArray(response.content)
-        ? response.content.map((c) => (c as { text?: string }).text || '').join('')
-        : String(response.content);
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => null);
+      console.error('[Agent API] DeepAgents error:', errorData);
+      return NextResponse.json(
+        { error: 'AI 服务响应失败', details: errorData },
+        { status: response.status }
+      );
     }
+
+    const data = await response.json();
+    const content = data.message?.content || data.content || '无响应';
 
     return NextResponse.json({ response: content });
   } catch (error) {
