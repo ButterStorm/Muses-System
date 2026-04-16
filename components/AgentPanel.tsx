@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Bot, Send, Loader2, Sparkles } from 'lucide-react';
+import { X, Bot, Send, Sparkles } from 'lucide-react';
 
 interface Message {
   id: string;
@@ -107,23 +107,26 @@ const AgentPanel: React.FC = () => {
 
   return (
     <>
-      {/* Toggle Button */}
+      {/* Toggle Button - 保持原始贴边设计 */}
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
-          className="absolute top-1/2 right-0 -translate-y-1/2 z-50 bg-gradient-to-r from-blue-600 to-purple-600 text-white p-3 pl-4 rounded-l-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all group"
+          className="absolute top-1/2 right-0 -translate-y-1/2 z-50
+                     bg-gradient-to-r from-gray-800 to-gray-900
+                     text-white p-3 pl-4 rounded-l-xl
+                     shadow-lg hover:shadow-xl hover:scale-105 transition-all group"
           title="Open Agent"
         >
           <div className="flex items-center gap-2">
             <Sparkles size={18} />
-            <span className="font-medium text-sm">AI 助手</span>
+            <span className="font-medium text-sm">Agent</span>
           </div>
         </button>
       )}
 
-      {/* Panel */}
+      {/* Panel - 保持原始布局结构，但使用柔和配色 */}
       <div
-        className={`bg-white shadow-2xl transition-all duration-300 ease-in-out flex flex-col border-l border-gray-200 h-full flex-shrink-0`}
+        className={`bg-white/90 backdrop-blur-xl shadow-2xl transition-all duration-300 ease-in-out flex flex-col border-l border-gray-200/60 h-full flex-shrink-0`}
         style={{
           width: isOpen ? '380px' : '0px',
           opacity: isOpen ? 1 : 0,
@@ -131,8 +134,9 @@ const AgentPanel: React.FC = () => {
           overflow: 'hidden',
         }}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gradient-to-r from-blue-600 to-purple-600 text-white">
+        {/* Header - 柔和深灰渐变 */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100
+                        bg-gradient-to-r from-gray-800 to-gray-900 text-white">
           <div className="flex items-center gap-2">
             <Bot size={22} />
             <span className="font-semibold">Muses AI 助手</span>
@@ -145,18 +149,18 @@ const AgentPanel: React.FC = () => {
           </button>
         </div>
 
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
+        {/* Messages - 柔和配色 */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50/80">
           {messages.map((msg) => (
             <div
               key={msg.id}
               className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               <div
-                className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm ${
+                className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
                   msg.role === 'user'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-white text-gray-800 border border-gray-200 shadow-sm'
+                    ? 'bg-gray-800 text-white shadow-md'
+                    : 'bg-white text-gray-700 border border-gray-200 shadow-sm'
                 }`}
               >
                 {formatContent(msg.content)}
@@ -166,7 +170,11 @@ const AgentPanel: React.FC = () => {
           {isLoading && (
             <div className="flex justify-start">
               <div className="bg-white rounded-2xl px-4 py-3 flex items-center gap-2 border border-gray-200 shadow-sm">
-                <Loader2 size={14} className="animate-spin text-blue-600" />
+                <div className="flex gap-1">
+                  <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                  <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                  <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                </div>
                 <span className="text-sm text-gray-500">思考中...</span>
               </div>
             </div>
@@ -174,7 +182,7 @@ const AgentPanel: React.FC = () => {
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Input */}
+        {/* Input - 简洁柔和 */}
         <div className="border-t border-gray-200 p-4 bg-white">
           <div className="flex gap-2">
             <input
@@ -184,12 +192,19 @@ const AgentPanel: React.FC = () => {
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="输入消息..."
-              className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm
+                         text-gray-700 placeholder:text-gray-400
+                         focus:outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-500/10
+                         transition-all"
             />
             <button
               onClick={sendMessage}
               disabled={isLoading || !input.trim()}
-              className="bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className={`px-3 py-2 rounded-xl transition-all
+                         ${input.trim() && !isLoading
+                           ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-md'
+                           : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                         }`}
             >
               <Send size={16} />
             </button>
