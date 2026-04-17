@@ -202,7 +202,7 @@ const AgentPanel: React.FC = () => {
               disabled={isLoading || !input.trim()}
               className={`px-3 py-2 rounded-xl transition-all
                          ${input.trim() && !isLoading
-                           ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-md'
+                           ? 'bg-black text-white hover:bg-gray-900 shadow-md'
                            : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                          }`}
             >

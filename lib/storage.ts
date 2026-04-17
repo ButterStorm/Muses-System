@@ -76,6 +76,22 @@ export async function uploadImage(file: File): Promise<string> {
   return data.publicUrl;
 }
 
+function getExtensionFromFile(file: File): string {
+  const byName = file.name.split('.').pop()?.toLowerCase();
+  if (byName && byName.length <= 8) return byName;
+
+  const byType = file.type.split('/').pop()?.toLowerCase();
+  if (byType && byType.length <= 8) return byType;
+
+  return 'bin';
+}
+
+export async function uploadFile(file: File): Promise<string> {
+  const ext = getExtensionFromFile(file);
+  const buffer = await file.arrayBuffer();
+  return uploadBuffer(buffer, file.type || 'application/octet-stream', ext);
+}
+
 export async function uploadBuffer(buffer: ArrayBuffer, contentType: string, ext: string): Promise<string> {
   const timestamp = Date.now();
   const random = Math.random().toString(36).slice(2, 8);

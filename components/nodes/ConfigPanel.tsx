@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { getAvailableVoices } from '@/services/AudioService';
-import type { NodeType, MusicGenerationMode, UnifiedNodeData } from './unified-types';
+import type { MusicGenerationMode, UnifiedNodeData } from './unified-types';
 
 interface ConfigPanelProps {
     nodeData: UnifiedNodeData;
@@ -10,8 +10,28 @@ interface ConfigPanelProps {
     ringColor: string;
 }
 
+interface DropdownOption {
+    value: string | number;
+    label: string;
+}
+
+function getVideoDurationRange(model: string): { min: number; max: number } {
+    if (model === 'kling') return { min: 5, max: 10 };
+    if (model === 'seedance-2-0') return { min: 4, max: 15 };
+    return { min: 4, max: 12 };
+}
+
 export default function ConfigPanel({ nodeData, setNodeData, bgColor, ringColor }: ConfigPanelProps) {
     const voices = getAvailableVoices();
+    const videoRange = useMemo(
+        () => getVideoDurationRange(nodeData.model),
+        [nodeData.model]
+    );
+
+    const voiceOptions = useMemo(
+        () => voices.map((v) => ({ value: v.id, label: v.name })),
+        [voices]
+    );
 
     const label = nodeData.type === 'video'
         ? '时长 (秒)'
@@ -26,28 +46,40 @@ export default function ConfigPanel({ nodeData, setNodeData, bgColor, ringColor 
             <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider px-1">{label}</div>
 
             {nodeData.type === 'video' ? (
-                <div className="relative">
-                    <select
-                        value={nodeData.duration}
-                        onChange={(e) => setNodeData(prev => ({ ...prev, duration: Number(e.target.value) }))}
-                        className={`w-full pl-3 pr-8 py-2 bg-gray-50 border-none rounded-xl text-sm appearance-none focus:ring-2 ${ringColor} transition-all cursor-pointer font-medium text-gray-700`}
-                    >
-                        <option value={5}>5秒</option>
-                        <option value={10}>10秒</option>
-                    </select>
-                    <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                <div className="space-y-1">
+                    <div className="relative">
+                        <input
+                            type="number"
+                            min={videoRange.min}
+                            max={videoRange.max}
+                            step={1}
+                            value={nodeData.duration}
+                            onChange={(e) => {
+                                const parsed = Number.parseInt(e.target.value, 10);
+                                if (!Number.isNaN(parsed)) {
+                                    setNodeData(prev => ({ ...prev, duration: parsed }));
+                                }
+                            }}
+                            onBlur={(e) => {
+                                const parsed = Number.parseInt(e.target.value, 10);
+                                const next = Number.isNaN(parsed) ? 5 : Math.max(videoRange.min, Math.min(videoRange.max, parsed));
+                                setNodeData(prev => ({ ...prev, duration: next }));
+                            }}
+                            className={`w-full pl-3 pr-10 py-2 bg-gray-50 border-none rounded-xl text-sm focus:ring-2 ${ringColor} transition-all font-medium text-gray-700`}
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 font-semibold">秒</span>
+                    </div>
+                    <div className="px-1 text-[10px] text-gray-400">
+                        范围：{videoRange.min}-{videoRange.max} 秒（默认 5 秒）
+                    </div>
                 </div>
             ) : nodeData.type === 'audio' ? (
-                <div className="relative">
-                    <select
-                        value={nodeData.voice}
-                        onChange={(e) => setNodeData(prev => ({ ...prev, voice: e.target.value }))}
-                        className={`w-full pl-3 pr-8 py-2 bg-gray-50 border-none rounded-xl text-sm appearance-none focus:ring-2 ${ringColor} transition-all cursor-pointer font-medium text-gray-700`}
-                    >
-                        {voices.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
-                    </select>
-                    <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-                </div>
+                <DropdownField
+                    value={nodeData.voice}
+                    options={voiceOptions}
+                    ringColor={ringColor}
+                    onChange={(value) => setNodeData(prev => ({ ...prev, voice: String(value) }))}
+                />
             ) : nodeData.type === 'music' ? (
                 <MusicConfig nodeData={nodeData} setNodeData={setNodeData} bgColor={bgColor} ringColor={ringColor} />
             ) : (
@@ -63,6 +95,73 @@ export default function ConfigPanel({ nodeData, setNodeData, bgColor, ringColor 
                     ))}
                 </div>
             )}
+        </div>
+    );
+}
+
+function DropdownField({
+    value,
+    options,
+    ringColor,
+    onChange,
+}: {
+    value: string | number;
+    options: DropdownOption[];
+    ringColor: string;
+    onChange: (value: string | number) => void;
+}) {
+    const [isOpen, setIsOpen] = useState(false);
+    const menuRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            const target = event.target as Node;
+            if (menuRef.current && !menuRef.current.contains(target)) {
+                setIsOpen(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const selected = options.find((option) => option.value === value);
+
+    return (
+        <div ref={menuRef} className="relative group nodrag">
+            <button
+                type="button"
+                onClick={() => setIsOpen((prev) => !prev)}
+                className={`w-full pl-3 pr-8 py-2 bg-gray-50 border-none rounded-xl text-sm focus:ring-2 ${ringColor} transition-all cursor-pointer font-medium text-gray-700 text-left`}
+            >
+                {selected?.label || String(value)}
+            </button>
+            <ChevronDown size={14} className={`absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+            <div
+                className={`absolute top-full left-0 right-0 mt-2 bg-white/95 backdrop-blur-md shadow-2xl rounded-xl border border-gray-100 py-1 z-50 origin-top transition-all duration-150 ${
+                    isOpen
+                        ? 'opacity-100 scale-100 translate-y-0 pointer-events-auto'
+                        : 'opacity-0 scale-95 -translate-y-1 pointer-events-none'
+                }`}
+            >
+                {options.map((option) => (
+                    <button
+                        key={String(option.value)}
+                        type="button"
+                        onClick={() => {
+                            onChange(option.value);
+                            setIsOpen(false);
+                        }}
+                        className={`w-full px-3 py-2 text-left text-sm transition-colors ${
+                            value === option.value
+                                ? 'font-semibold text-gray-800 bg-gray-50'
+                                : 'text-gray-600 hover:bg-gray-50'
+                        }`}
+                    >
+                        {option.label}
+                    </button>
+                ))}
+            </div>
         </div>
     );
 }

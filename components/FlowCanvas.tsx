@@ -283,7 +283,7 @@ const FlowInner: React.FC<FlowCanvasProps> = ({ projectId }) => {
     if (type === 'musicNode') data = { label, prompt: '', musicUrl: '', isLoading: false };
     if (type === 'unifiedNode') data = { label, type: 'text', prompt: '', model: 'gpt-5-mini', count: 1, duration: 5, voice: 'zh_male_sunny', output: null, isLoading: false };
     if (type === 'textInputNode') data = { label, text: '' };
-    if (type === 'imageInputNode') data = { label, imageUrl: '' };
+    if (type === 'imageInputNode') data = { label, imageUrls: [], videoUrls: [], audioUrls: [], imageUrl: '', videoUrl: '', audioUrl: '' };
 
     const newNode: Node = {
       ...(base as Node),

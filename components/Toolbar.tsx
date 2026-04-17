@@ -31,7 +31,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ onAddNode, onSave, projectName, onRen
   };
 
   const handleAddImageInputNode = () => {
-    onAddNode('imageInputNode', '图片参考');
+    onAddNode('imageInputNode', '多模态参考');
   };
 
   const handleAddUnifiedNode = () => {
@@ -86,7 +86,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ onAddNode, onSave, projectName, onRen
             onClick={handleAddImageInputNode}
             className="px-3 py-1.5 hover:bg-white rounded-lg transition-all text-[11px] font-bold text-gray-600 hover:text-black hover:shadow-sm"
           >
-            + 图片参考
+            + 多模态参考
           </button>
         </div>
 

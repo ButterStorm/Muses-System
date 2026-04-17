@@ -36,8 +36,12 @@ const TextInputNode = ({ id, data, selected }: NodeProps) => {
                 <textarea
                     value={text}
                     onChange={(e) => setText(e.target.value)}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onTouchStart={(e) => e.stopPropagation()}
+                    onTouchMove={(e) => e.stopPropagation()}
                     placeholder="输入内容..."
-                    className="w-full h-full bg-transparent border-none focus:ring-0 text-sm text-gray-700 leading-relaxed resize-none p-0 nodrag custom-scrollbar"
+                    className="w-full h-full bg-transparent border-none focus:ring-0 text-sm text-gray-700 leading-relaxed resize-none p-0 nodrag nowheel nopan custom-scrollbar overflow-y-auto"
+                    style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}
                 />
             </div>
 
