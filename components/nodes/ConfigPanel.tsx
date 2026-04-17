@@ -15,6 +15,48 @@ interface DropdownOption {
     label: string;
 }
 
+interface VideoDurationFieldProps {
+    duration: number;
+    videoRange: { min: number; max: number };
+    ringColor: string;
+    onChange: (duration: number) => void;
+}
+
+function VideoDurationField({ duration, videoRange, ringColor, onChange }: VideoDurationFieldProps) {
+    const [inputValue, setInputValue] = useState(String(duration));
+
+    useEffect(() => {
+        setInputValue(String(duration));
+    }, [duration]);
+
+    return (
+        <div className="space-y-1">
+            <div className="relative">
+                <input
+                    type="number"
+                    min={videoRange.min}
+                    max={videoRange.max}
+                    step={1}
+                    value={inputValue}
+                    onChange={(e) => {
+                        setInputValue(e.target.value);
+                    }}
+                    onBlur={(e) => {
+                        const parsed = Number.parseInt(e.target.value, 10);
+                        const next = Number.isNaN(parsed) ? 5 : Math.max(videoRange.min, Math.min(videoRange.max, parsed));
+                        onChange(next);
+                    }}
+                    className={`w-full pl-3 pr-10 py-2 bg-gray-50 border-none rounded-xl text-sm focus:ring-2 ${ringColor} transition-all font-medium text-gray-700`}
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 font-semibold">秒</span>
+            </div>
+            <div className="px-1 text-[10px] text-gray-400">
+                范围：{videoRange.min}-{videoRange.max} 秒（默认 5 秒）
+            </div>
+        </div>
+    );
+}
+
 function getVideoDurationRange(model: string): { min: number; max: number } {
     if (model === 'kling') return { min: 5, max: 10 };
     if (model === 'seedance-2-0') return { min: 4, max: 15 };
@@ -46,33 +88,12 @@ export default function ConfigPanel({ nodeData, setNodeData, bgColor, ringColor 
             <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider px-1">{label}</div>
 
             {nodeData.type === 'video' ? (
-                <div className="space-y-1">
-                    <div className="relative">
-                        <input
-                            type="number"
-                            min={videoRange.min}
-                            max={videoRange.max}
-                            step={1}
-                            value={nodeData.duration}
-                            onChange={(e) => {
-                                const parsed = Number.parseInt(e.target.value, 10);
-                                if (!Number.isNaN(parsed)) {
-                                    setNodeData(prev => ({ ...prev, duration: parsed }));
-                                }
-                            }}
-                            onBlur={(e) => {
-                                const parsed = Number.parseInt(e.target.value, 10);
-                                const next = Number.isNaN(parsed) ? 5 : Math.max(videoRange.min, Math.min(videoRange.max, parsed));
-                                setNodeData(prev => ({ ...prev, duration: next }));
-                            }}
-                            className={`w-full pl-3 pr-10 py-2 bg-gray-50 border-none rounded-xl text-sm focus:ring-2 ${ringColor} transition-all font-medium text-gray-700`}
-                        />
-                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 font-semibold">秒</span>
-                    </div>
-                    <div className="px-1 text-[10px] text-gray-400">
-                        范围：{videoRange.min}-{videoRange.max} 秒（默认 5 秒）
-                    </div>
-                </div>
+                <VideoDurationField
+                    duration={nodeData.duration}
+                    videoRange={videoRange}
+                    ringColor={ringColor}
+                    onChange={(duration) => setNodeData(prev => ({ ...prev, duration }))}
+                />
             ) : nodeData.type === 'audio' ? (
                 <DropdownField
                     value={nodeData.voice}
