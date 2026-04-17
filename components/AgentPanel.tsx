@@ -77,10 +77,14 @@ const AgentPanel: React.FC = () => {
       setMessages(prev => [...prev, assistantMessage]);
     } catch (error) {
       console.error('Agent API error:', error);
+      const fallbackMessage =
+        error instanceof Error && error.message
+          ? error.message
+          : '抱歉，服务暂时不可用，请稍后重试。';
       setMessages(prev => [...prev, {
         id: Date.now().toString(),
         role: 'assistant',
-        content: '抱歉，服务暂时不可用，请稍后重试。',
+        content: fallbackMessage,
         timestamp: new Date(),
       }]);
     } finally {
