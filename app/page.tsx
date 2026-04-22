@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { ArrowRight, Globe, User, Loader2 } from 'lucide-react';
+import { ArrowRight, Globe, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useScrollAnimation } from '@/hooks/useScrollAnimation';
 import { useAuthStore } from '@/stores/authStore';
@@ -34,6 +34,7 @@ const translations = {
     },
     common: { learnMore: 'Learn More' },
     cta: {
+      kicker: 'Final Act',
       title: 'Ready to Elevate Your AI Creation Experience?',
       desc: 'Take the first step toward clean, conversion-driven design that delights users and drives growth.',
       btn: 'START NOW'
@@ -64,6 +65,7 @@ const translations = {
     },
     common: { learnMore: '了解更多' },
     cta: {
+      kicker: '终章',
       title: '准备好提升您的AI创作体验了吗？',
       desc: '迈出第一步，体验简洁、以转化为导向的设计，取悦用户并推动增长。',
       btn: '立即开始'
@@ -177,10 +179,30 @@ const LandingPage: React.FC = () => {
 
   const heroSection = useScrollAnimation();
   const featuredSection = useScrollAnimation();
-  const project1 = useScrollAnimation();
-  const project2 = useScrollAnimation();
-  const project3 = useScrollAnimation();
   const ctaSection = useScrollAnimation();
+
+  const chapters = [
+    { title: t.project1.title, desc: t.project1.desc, image: '/Script.jpg', alt: 'Script Generation' },
+    { title: t.project2.title, desc: t.project2.desc, image: '/Canvas.jpg', alt: 'Creative Design Canvas' },
+    { title: t.project3.title, desc: t.project3.desc, image: '/Video.jpg', alt: 'Cinematic Video Production' },
+  ];
+
+  const renderProjectCard = (chapterIndex: number, extraClassName = '') => {
+    const chapter = chapters[chapterIndex];
+
+    return (
+      <div className={`bg-gray-900/95 rounded-2xl overflow-hidden transition-all duration-700 ${extraClassName}`}>
+        <div className="relative aspect-[16/10] md:aspect-[16/9] overflow-hidden">
+          <img
+            src={chapter.image}
+            alt={chapter.alt}
+            className="w-full h-full object-contain"
+          />
+          <div className="absolute inset-0 ring-1 ring-inset ring-white/8 rounded-2xl pointer-events-none"></div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-black text-white overflow-x-hidden relative">
@@ -211,7 +233,7 @@ const LandingPage: React.FC = () => {
         </div>
       </header>
 
-      <section className="relative pt-32 pb-20 px-4 sm:px-6 lg:px-8 overflow-hidden">
+      <section className="relative pt-32 pb-16 px-4 sm:px-6 lg:px-8 overflow-hidden min-h-screen">
         <div className="absolute inset-0 w-full h-full">
           <ColorBends
             colors={["#10b981", "#ff5c7a", "#3b82f6"]}
@@ -227,23 +249,35 @@ const LandingPage: React.FC = () => {
           />
         </div>
 
-        <div className="max-w-7xl mx-auto relative z-10" ref={heroSection.ref}>
-          <div className={`inline-flex items-center space-x-2 bg-gray-900 rounded-full px-4 py-2 mb-8 animate-on-scroll animate-fade-up ${heroSection.isVisible ? 'animated' : ''}`}>
-            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-            <span className="text-sm font-medium text-gray-300">{t.hero.badge}</span>
+        <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-b from-transparent via-black/30 to-black pointer-events-none z-[1]"></div>
+        <div className="absolute inset-x-0 bottom-[-2rem] h-48 bg-[radial-gradient(ellipse_at_62%_0%,rgba(234,243,255,0.26),transparent_34%),radial-gradient(ellipse_at_70%_10%,rgba(196,171,255,0.24),transparent_28%),radial-gradient(ellipse_at_55%_20%,rgba(132,255,221,0.16),transparent_32%)] blur-2xl pointer-events-none z-[1]"></div>
+
+        <div className="max-w-7xl mx-auto relative z-10 min-h-[calc(100vh-8rem)] flex items-end pb-8" ref={heroSection.ref}>
+          <div>
+            <div className={`inline-flex items-center space-x-2 bg-gray-900 rounded-full px-4 py-2 mb-8 animate-on-scroll animate-fade-up ${heroSection.isVisible ? 'animated' : ''}`}>
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              <span className="text-sm font-medium text-gray-300">{t.hero.badge}</span>
+            </div>
+
+            <h1 className={`text-5xl md:text-7xl font-medium mb-6 bg-gradient-to-b from-white to-gray-400 bg-clip-text text-transparent animate-on-scroll animate-fade-up delay-100 ${heroSection.isVisible ? 'animated' : ''}`}>
+              {t.hero.title}
+            </h1>
+
+            <p className={`text-xl text-gray-400 max-w-3xl mb-12 leading-relaxed animate-on-scroll animate-fade-up delay-200 ${heroSection.isVisible ? 'animated' : ''}`}>
+              {t.hero.desc}
+            </p>
+
           </div>
-
-          <h1 className={`text-5xl md:text-7xl font-medium mb-6 bg-gradient-to-b from-white to-gray-400 bg-clip-text text-transparent animate-on-scroll animate-fade-up delay-100 ${heroSection.isVisible ? 'animated' : ''}`}>
-            {t.hero.title}
-          </h1>
-
-          <p className={`text-xl text-gray-400 max-w-3xl mb-12 leading-relaxed animate-on-scroll animate-fade-up delay-200 ${heroSection.isVisible ? 'animated' : ''}`}>
-            {t.hero.desc}
-          </p>
         </div>
       </section>
 
-      <div className="relative">
+      <div className="relative -mt-24 pt-24">
+        <div className="absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-transparent via-black/50 to-black pointer-events-none z-[1]"></div>
+        <div className="absolute inset-x-0 top-0 h-56 bg-[radial-gradient(ellipse_at_50%_0%,rgba(255,255,255,0.26),transparent_32%),radial-gradient(ellipse_at_62%_8%,rgba(194,175,255,0.24),transparent_28%),radial-gradient(ellipse_at_44%_12%,rgba(106,235,255,0.14),transparent_30%)] blur-3xl opacity-90 pointer-events-none z-[1]"></div>
+        <div className="absolute left-1/2 top-4 h-28 w-[min(64rem,82vw)] -translate-x-1/2 rounded-full bg-white/12 blur-3xl opacity-60 pointer-events-none z-[1]"></div>
+        <div className="absolute left-1/2 top-16 h-px w-[min(58rem,76vw)] -translate-x-1/2 bg-gradient-to-r from-transparent via-white/45 to-transparent opacity-70 pointer-events-none z-[1]"></div>
+        <div className="absolute left-[58%] top-6 h-40 w-40 rounded-full bg-violet-200/12 blur-[90px] pointer-events-none z-[1]"></div>
+        <div className="absolute left-[42%] top-10 h-32 w-32 rounded-full bg-cyan-200/10 blur-[84px] pointer-events-none z-[1]"></div>
         <div className="absolute inset-0 w-full h-full z-0">
           <Galaxy
             focal={[0.5, 0.5]}
@@ -265,7 +299,7 @@ const LandingPage: React.FC = () => {
           />
         </div>
 
-        <section className="relative z-10 py-20 px-4 sm:px-6 lg:px-8">
+        <section className="relative z-10 pt-20 pb-14 px-4 sm:px-6 lg:px-8">
           <div className="max-w-7xl mx-auto">
             <div className="text-center mb-16" ref={featuredSection.ref}>
               <h2 className={`text-4xl md:text-5xl font-medium mb-4 animate-on-scroll animate-fade-up ${featuredSection.isVisible ? 'animated' : ''}`}>{t.featured.title}</h2>
@@ -274,105 +308,80 @@ const LandingPage: React.FC = () => {
               </p>
             </div>
 
-            <div className="grid gap-8 lg:grid-cols-2">
-              <div
-                ref={project1.ref}
-                className={`bg-gray-900 rounded-2xl overflow-hidden group hover:bg-gray-800 transition-colors animate-on-scroll animate-fade-up ${project1.isVisible ? 'animated' : ''}`}
-              >
-                <div className="aspect-video relative overflow-hidden">
-                  <img
-                    src="/Script.jpg"
-                    alt="Script Generation"
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-transparent to-transparent opacity-60"></div>
-                </div>
-                <div className="p-8">
-                  <h3 className="text-2xl font-medium mb-3">{t.project1.title}</h3>
-                  <p className="text-gray-400 mb-6 leading-relaxed">
-                    {t.project1.desc}
-                  </p>
-                  <button className="flex items-center space-x-2 text-white hover:text-green-400 transition-colors">
-                    <span>{t.common.learnMore}</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-
-              <div
-                ref={project2.ref}
-                className={`bg-gray-900 rounded-2xl overflow-hidden group hover:bg-gray-800 transition-colors animate-on-scroll animate-fade-up delay-100 ${project2.isVisible ? 'animated' : ''}`}
-              >
-                <div className="aspect-video relative overflow-hidden">
-                  <img
-                    src="/Canvas.jpg"
-                    alt="Creative Design Canvas"
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-transparent to-transparent opacity-60"></div>
-                </div>
-                <div className="p-8">
-                  <h3 className="text-2xl font-medium mb-3">{t.project2.title}</h3>
-                  <p className="text-gray-400 mb-6 leading-relaxed">
-                    {t.project2.desc}
-                  </p>
-                  <button className="flex items-center space-x-2 text-white hover:text-green-400 transition-colors">
-                    <span>{t.common.learnMore}</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-
-              <div
-                ref={project3.ref}
-                className={`lg:col-span-2 bg-gray-900 rounded-2xl overflow-hidden group hover:bg-gray-800 transition-colors animate-on-scroll animate-fade-up delay-200 ${project3.isVisible ? 'animated' : ''}`}
-              >
-                <div className="flex flex-col lg:flex-row">
-                  <div className="flex-[1.5] p-8 lg:p-12">
-                    <h3 className="text-3xl font-medium mb-4">{t.project3.title}</h3>
-                    <p className="text-gray-400 mb-8 leading-relaxed max-w-2xl">
-                      {t.project3.desc}
-                    </p>
-                    <button className="flex items-center space-x-2 text-white hover:text-green-400 transition-colors">
-                      <span>{t.common.learnMore}</span>
-                      <ArrowRight className="w-4 h-4" />
-                    </button>
+            <div className="space-y-20 lg:space-y-0">
+              {chapters.map((chapter, index) => (
+                <article
+                  key={chapter.title}
+                  className="lg:grid lg:grid-cols-[minmax(0,0.82fr)_minmax(0,1.18fr)] lg:gap-12 lg:min-h-[120vh]"
+                >
+                  <div className="flex items-center lg:py-28">
+                    <div className="max-w-xl">
+                      <p className="text-xs tracking-[0.28em] uppercase text-gray-500 mb-5">
+                        {`Chapter 0${index + 1}`}
+                      </p>
+                      <h3 className="text-3xl md:text-5xl font-medium text-white mb-5">
+                        {chapter.title}
+                      </h3>
+                      <p className="text-lg md:text-xl text-gray-400 leading-relaxed mb-8">
+                        {chapter.desc}
+                      </p>
+                      <button className="flex items-center space-x-2 text-white hover:text-green-400 transition-colors">
+                        <span>{t.common.learnMore}</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex-1 aspect-video lg:aspect-auto relative overflow-hidden">
-                    <img
-                      src="/Video.jpg"
-                      alt="Cinematic Video Production"
-                      className="w-full h-full object-cover"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-l from-gray-900 via-transparent to-transparent lg:bg-gradient-to-t opacity-60"></div>
+
+                  <div className="mt-10 lg:mt-0">
+                    <div className="lg:sticky lg:top-24 lg:min-h-screen lg:flex lg:items-center">
+                      <div className="w-full">
+                        {renderProjectCard(index, 'shadow-[0_30px_80px_rgba(0,0,0,0.35)]')}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
+                </article>
+              ))}
             </div>
           </div>
         </section>
 
-        <section className="relative z-10 py-20 px-4 sm:px-6 lg:px-8">
-          <div className="max-w-4xl mx-auto text-center">
+        <section className="relative z-10 pt-14 pb-24 px-4 sm:px-6 lg:px-8">
+          <div className="max-w-7xl mx-auto">
             <div
               ref={ctaSection.ref}
-              className={`bg-gray-900 rounded-3xl p-12 relative overflow-hidden animate-on-scroll animate-fade-up ${ctaSection.isVisible ? 'animated' : ''}`}
+              className={`relative overflow-hidden rounded-[2.5rem] border border-white/10 bg-[#07111f] px-7 py-10 sm:px-10 sm:py-12 lg:px-14 lg:py-16 animate-on-scroll animate-fade-up ${ctaSection.isVisible ? 'animated' : ''}`}
             >
-              <div className="absolute inset-0 bg-gradient-to-r from-green-500/10 via-transparent to-green-500/10"></div>
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_16%_18%,rgba(108,240,255,0.18),transparent_26%),radial-gradient(circle_at_82%_20%,rgba(177,146,255,0.22),transparent_24%),radial-gradient(circle_at_58%_82%,rgba(87,255,183,0.10),transparent_28%),linear-gradient(135deg,rgba(7,17,31,0.96),rgba(10,24,38,0.90)_55%,rgba(8,20,30,0.96))]"></div>
+              <div className="absolute inset-x-[8%] top-0 h-px bg-gradient-to-r from-transparent via-white/40 to-transparent"></div>
+              <div className="absolute -left-24 top-1/2 h-72 w-72 -translate-y-1/2 rounded-full border border-cyan-300/15"></div>
+              <div className="absolute -left-10 top-1/2 h-44 w-44 -translate-y-1/2 rounded-full border border-cyan-200/10"></div>
+              <div className="absolute right-[-5rem] top-[-4rem] h-52 w-52 rounded-full bg-violet-300/10 blur-3xl"></div>
+              <div className="absolute left-[36%] bottom-[-6rem] h-40 w-72 rounded-full bg-cyan-200/10 blur-3xl"></div>
 
-              <div className="relative z-10">
-                <h2 className="text-4xl md:text-5xl font-medium mb-6">
-                  {t.cta.title}
-                </h2>
-                <p className="text-xl text-gray-400 mb-8 max-w-2xl mx-auto">
-                  {t.cta.desc}
-                </p>
-                <Link
-                  href="/canvas"
-                  className="bg-white text-black px-8 py-4 rounded-full font-semibold hover:bg-gray-100 transition-colors text-lg inline-block"
-                >
-                  {t.cta.btn}
-                </Link>
+              <div className="relative z-10 grid gap-12 lg:grid-cols-[minmax(0,1.2fr)_minmax(20rem,0.8fr)] lg:items-end">
+                <div className="max-w-4xl">
+                  <p className="text-xs tracking-[0.36em] uppercase text-cyan-100/65 mb-5">
+                    {t.cta.kicker}
+                  </p>
+                  <h2 className="text-[clamp(3rem,7vw,6.5rem)] leading-[0.92] font-medium text-white text-balance">
+                    {t.cta.title}
+                  </h2>
+                </div>
+
+                <div className="lg:justify-self-end">
+                  <div className="max-w-md rounded-[2rem] border border-white/10 bg-white/5 backdrop-blur-md p-6 sm:p-7">
+                    <p className="text-lg sm:text-xl text-gray-300 leading-relaxed mb-8">
+                      {t.cta.desc}
+                    </p>
+                    <Link
+                      href="/canvas"
+                      className="inline-flex items-center gap-3 rounded-full bg-white text-black px-7 py-4 font-semibold text-base sm:text-lg transition-all hover:bg-cyan-50 hover:shadow-[0_0_40px_rgba(255,255,255,0.18)]"
+                    >
+                      <span>{t.cta.btn}</span>
+                      <ArrowRight className="w-5 h-5" />
+                    </Link>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
