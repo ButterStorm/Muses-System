@@ -6,10 +6,11 @@ import { uploadBuffer } from '@/lib/serverStorage';
 
 const DMX_API_KEY = process.env.DMX_API_KEY;
 const DMX_BASE_URL = 'https://www.dmxapi.cn';
+const GPT_IMAGE_MODEL = 'gpt-image-2';
 
 // 输入验证 schema
 const ImageGenerationSchema = z.object({
-  model: z.enum(['doubao-seedream-5.0-lite', 'gemini-2.5-flash-image', 'gemini-3-pro-image']),
+  model: z.enum(['doubao-seedream-5.0-lite', 'gemini-2.5-flash-image', 'gemini-3-pro-image', 'gpt-image-2']),
   prompt: z.string().min(1).max(4000),
   size: z.enum(['1K', '2K', '4K', '1024x1024', '1024x1536', '1536x1024']).default('2K'),
   aspectRatio: z.enum(['1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9']).default('1:1'),
@@ -51,6 +52,10 @@ export async function POST(request: NextRequest) {
       };
       const geminiModel = geminiModelMap[model] || model;
       result = await generateGeminiImage(geminiModel, prompt, images);
+    } else if (model === GPT_IMAGE_MODEL) {
+      result = images && images.length > 0
+        ? await editGptImage(prompt, size, images)
+        : await generateGptImage(prompt, size);
     } else {
       return NextResponse.json(
         { error: '不支持的图片模型' },
@@ -136,6 +141,97 @@ async function generateSeedream5(
   return urls.length === 1 ? urls[0] : urls;
 }
 
+async function generateGptImage(
+  prompt: string,
+  size: string
+): Promise<string | string[]> {
+  const response = await axios.post(
+    `${DMX_BASE_URL}/v1/images/generations`,
+    {
+      model: GPT_IMAGE_MODEL,
+      prompt,
+      n: 1,
+      size: normalizeGptImageSize(size),
+      quality: 'high',
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${DMX_API_KEY}`,
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      timeout: 300000,
+    }
+  );
+
+  return await extractGptImageResults(response.data);
+}
+
+async function editGptImage(
+  prompt: string,
+  size: string,
+  images: string[]
+): Promise<string | string[]> {
+  const formData = new FormData();
+  formData.append('model', GPT_IMAGE_MODEL);
+  formData.append('prompt', prompt);
+  formData.append('size', normalizeGptImageSize(size));
+  formData.append('background', 'auto');
+  formData.append('quality', 'high');
+  formData.append('output_format', 'png');
+  formData.append('n', '1');
+
+  for (const imageUrl of images.slice(0, 6)) {
+    const imgRes = await axios.get(imageUrl, { responseType: 'arraybuffer' });
+    const mimeType = (imgRes.headers['content-type'] as string) || 'image/png';
+    const ext = mimeTypeToExtension(mimeType);
+    const blob = new Blob([imgRes.data], { type: mimeType });
+    formData.append('image', blob, `reference-${Date.now()}.${ext}`);
+  }
+
+  const response = await axios.post(
+    `${DMX_BASE_URL}/v1/images/edits`,
+    formData,
+    {
+      headers: {
+        Authorization: `Bearer ${DMX_API_KEY}`,
+        Accept: 'application/json',
+      },
+      timeout: 300000,
+    }
+  );
+
+  return await extractGptImageResults(response.data);
+}
+
+async function extractGptImageResults(data: unknown): Promise<string | string[]> {
+  const items = (data as { data?: Array<{ b64_json?: string; url?: string }> })?.data;
+  if (!items || items.length === 0) {
+    throw new Error('图片生成失败：未返回有效数据');
+  }
+
+  const urls: string[] = [];
+
+  for (const item of items) {
+    if (item.b64_json) {
+      const imgBuffer = Buffer.from(item.b64_json, 'base64');
+      const uploadedUrl = await uploadBuffer(toArrayBuffer(imgBuffer), 'image/png', 'png');
+      urls.push(uploadedUrl);
+      continue;
+    }
+
+    if (item.url) {
+      urls.push(item.url);
+    }
+  }
+
+  if (urls.length === 0) {
+    throw new Error('图片生成失败：响应中无图片数据');
+  }
+
+  return urls.length === 1 ? urls[0] : urls;
+}
+
 async function generateGeminiImage(
   model: string,
   prompt: string,
@@ -192,6 +288,26 @@ async function generateGeminiImage(
 
   console.error(`[Gemini ${model}] response structure:`, JSON.stringify(data, null, 2).substring(0, 800));
   throw new Error(`${model} 图片生成失败：响应中无图片数据`);
+}
+
+function normalizeGptImageSize(size: string): string {
+  if (size === '1024x1024' || size === '1024x1536' || size === '1536x1024') {
+    return size;
+  }
+
+  return 'auto';
+}
+
+function mimeTypeToExtension(mimeType: string): string {
+  if (mimeType === 'image/jpeg') return 'jpg';
+  if (mimeType === 'image/webp') return 'webp';
+  return 'png';
+}
+
+function toArrayBuffer(buffer: Buffer): ArrayBuffer {
+  const ab = new ArrayBuffer(buffer.length);
+  new Uint8Array(ab).set(buffer);
+  return ab;
 }
 
 /**

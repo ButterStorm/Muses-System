@@ -61,8 +61,8 @@ export const TYPE_CONFIG: Record<NodeType, {
 };
 
 export const MODELS: Record<NodeType, string[]> = {
-    text: ['gpt-5-mini', 'deepseek-chat', 'kimi-k2.5', 'doubao-seed-1-8-251228'],
-    image: ['doubao-seedream-5.0-lite', 'gemini-3-pro-image', 'gemini-2.5-flash-image'],
+    text: ['gpt-5-mini', 'deepseek-v4-flash', 'deepseek-v4-pro', 'kimi-k2.5', 'doubao-seed-1-8-251228'],
+    image: ['doubao-seedream-5.0-lite', 'gemini-3-pro-image', 'gemini-2.5-flash-image', 'gpt-image-2'],
     video: ['kling', 'doubao', 'seedance-2-0'],
     audio: ['speech-2.6-hd'],
     music: ['suno-v5'],

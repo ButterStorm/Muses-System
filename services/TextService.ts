@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { getTextModelTimeoutMs } from '@/lib/textModelTimeout';
 
 const axiosClient = axios.create({
   baseURL: '/api',
@@ -30,7 +31,7 @@ export const generateTextWithDmx = async (
         imageUrl,
       },
       {
-        timeout: 120000,
+        timeout: getTextModelTimeoutMs(model),
       }
     );
 
