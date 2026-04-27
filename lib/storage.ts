@@ -1,7 +1,3 @@
-import { supabase } from './supabase';
-
-const BUCKET = 'test';
-
 const TARGET_SIZE_KB = 300;
 const MAX_WIDTH = 2048;
 const MAX_HEIGHT = 2048;
@@ -59,21 +55,7 @@ function compressImage(file: File): Promise<File> {
 
 export async function uploadImage(file: File): Promise<string> {
   const compressed = await compressImage(file);
-  const ext = 'jpg';
-  const timestamp = Date.now();
-  const random = Math.random().toString(36).slice(2, 8);
-  const path = `uploads/${timestamp}_${random}.${ext}`;
-
-  const { error } = await supabase.storage
-    .from(BUCKET)
-    .upload(path, compressed, { upsert: false, contentType: 'image/jpeg' });
-
-  if (error) {
-    throw new Error('上传失败: ' + error.message);
-  }
-
-  const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
-  return data.publicUrl;
+  return uploadFile(compressed);
 }
 
 function getExtensionFromFile(file: File): string {
@@ -87,24 +69,25 @@ function getExtensionFromFile(file: File): string {
 }
 
 export async function uploadFile(file: File): Promise<string> {
-  const ext = getExtensionFromFile(file);
-  const buffer = await file.arrayBuffer();
-  return uploadBuffer(buffer, file.type || 'application/octet-stream', ext);
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('ext', getExtensionFromFile(file));
+
+  const response = await fetch('/api/upload', {
+    method: 'POST',
+    body: formData,
+  });
+
+  const data = await response.json().catch(() => null) as { url?: string; error?: string } | null;
+
+  if (!response.ok || !data?.url) {
+    throw new Error(data?.error || '上传失败');
+  }
+
+  return data.url;
 }
 
 export async function uploadBuffer(buffer: ArrayBuffer, contentType: string, ext: string): Promise<string> {
-  const timestamp = Date.now();
-  const random = Math.random().toString(36).slice(2, 8);
-  const path = `uploads/${timestamp}_${random}.${ext}`;
-
-  const { error } = await supabase.storage
-    .from(BUCKET)
-    .upload(path, buffer, { upsert: false, contentType });
-
-  if (error) {
-    throw new Error('上传失败: ' + error.message);
-  }
-
-  const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
-  return data.publicUrl;
+  const file = new File([buffer], `upload.${ext}`, { type: contentType });
+  return uploadFile(file);
 }
