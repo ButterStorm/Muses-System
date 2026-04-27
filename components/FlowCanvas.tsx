@@ -24,8 +24,10 @@ import MusicNode from './nodes/MusicNode';
 import UnifiedGeneratorNode from './nodes/UnifiedGeneratorNode';
 import TextInputNode from './nodes/TextInputNode';
 import ImageInputNode from './nodes/ImageInputNode';
-import Toolbar from './Toolbar';
+import Toolbar, { ViewMode } from './Toolbar';
+import CanvasFloatingPanel from './CanvasFloatingPanel';
 import AgentPanel from './AgentPanel';
+import Galaxy from './Galaxy';
 import ErrorBoundary from './ErrorBoundary';
 import { useProjectStore } from '@/stores/projectStore';
 import { useAuthStore } from '@/stores/authStore';
@@ -323,25 +325,60 @@ const FlowInner: React.FC<FlowCanvasProps> = ({ projectId }) => {
     await saveProject(flowData);
   };
 
+  const [viewMode, setViewMode] = useState<ViewMode>('canvas');
+
   return (
     <div className="h-screen w-full flex flex-col bg-gray-50 overflow-hidden">
-      <Toolbar onAddNode={addNode} onSave={handleSave} projectName={currentProject?.name} onRename={(name) => renameProject(currentProject!.id, name)} />
+      <Toolbar onSave={handleSave} projectName={currentProject?.name} onRename={(name) => renameProject(currentProject!.id, name)} viewMode={viewMode} onViewModeChange={setViewMode} />
       <div className="flex-1 flex relative overflow-hidden">
-        <div className="flex-1 h-full relative">
-          <ReactFlow
-            nodes={nodes}
-            edges={edges}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            onConnect={onConnect}
-            nodeTypes={nodeTypes}
-            connectionMode={ConnectionMode.Loose}
-            fitView
-            className="bg-gray-50"
-            proOptions={{ hideAttribution: true }}
+        {/* 3D 翻转容器 */}
+        <div className="flex-1 h-full" style={{ perspective: 1200 }}>
+          {/* 正面 - 画布 */}
+          <div
+            className="absolute inset-0"
+            style={{
+              backfaceVisibility: 'hidden',
+              transform: viewMode === 'canvas' ? 'rotateY(0deg)' : 'rotateY(-180deg)',
+              transition: 'transform 0.6s cubic-bezier(0.4, 0.0, 0.2, 1)',
+            }}
           >
-            <Background color="#aaa" gap={16} />
-          </ReactFlow>
+            <ReactFlow
+              nodes={nodes}
+              edges={edges}
+              onNodesChange={onNodesChange}
+              onEdgesChange={onEdgesChange}
+              onConnect={onConnect}
+              nodeTypes={nodeTypes}
+              connectionMode={ConnectionMode.Loose}
+              fitView
+              className="bg-gray-50"
+              proOptions={{ hideAttribution: true }}
+            >
+              <Background color="#aaa" gap={16} />
+            </ReactFlow>
+            {viewMode === 'canvas' && <CanvasFloatingPanel onAddNode={addNode} />}
+          </div>
+
+          {/* 背面 - 空间 */}
+          <div
+            className="absolute inset-0"
+            style={{
+              backfaceVisibility: 'hidden',
+              transform: viewMode === 'space' ? 'rotateY(0deg)' : 'rotateY(180deg)',
+              transition: 'transform 0.6s cubic-bezier(0.4, 0.0, 0.2, 1)',
+            }}
+          >
+            <Galaxy
+              hueShift={160}
+              density={1.2}
+              starSpeed={0.4}
+              speed={0.8}
+              glowIntensity={0.4}
+              twinkleIntensity={0.5}
+              rotationSpeed={0.05}
+              transparent={false}
+            />
+          </div>
         </div>
         <AgentPanel />
       </div>

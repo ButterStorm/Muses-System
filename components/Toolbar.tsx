@@ -1,19 +1,22 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Plus, Save, Check, Loader2 } from 'lucide-react';
+import { Save, Check, Loader2, LayoutGrid, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import UserMenu from './UserMenu';
 import { useProjectStore } from '@/stores/projectStore';
 
+export type ViewMode = 'canvas' | 'space';
+
 interface ToolbarProps {
-  onAddNode: (type: string, label: string) => void;
   onSave: () => Promise<void>;
   projectName?: string;
   onRename?: (name: string) => void;
+  viewMode: ViewMode;
+  onViewModeChange: (mode: ViewMode) => void;
 }
 
-const Toolbar: React.FC<ToolbarProps> = ({ onAddNode, onSave, projectName, onRename }) => {
+const Toolbar: React.FC<ToolbarProps> = ({ onSave, projectName, onRename, viewMode, onViewModeChange }) => {
   const { isSaving } = useProjectStore();
   const [saved, setSaved] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -24,18 +27,6 @@ const Toolbar: React.FC<ToolbarProps> = ({ onAddNode, onSave, projectName, onRen
     if (name.trim() && name.trim() !== projectName && onRename) {
       onRename(name.trim());
     }
-  };
-
-  const handleAddTextInputNode = () => {
-    onAddNode('textInputNode', '文本输入');
-  };
-
-  const handleAddImageInputNode = () => {
-    onAddNode('imageInputNode', '多模态参考');
-  };
-
-  const handleAddUnifiedNode = () => {
-    onAddNode('unifiedNode', '文生文');
   };
 
   const handleSave = async () => {
@@ -75,30 +66,31 @@ const Toolbar: React.FC<ToolbarProps> = ({ onAddNode, onSave, projectName, onRen
       </div>
 
       <div className="flex items-center space-x-3">
-        <div className="flex bg-gray-100 p-1 rounded-xl space-x-1 mr-4">
+        {/* 画布/空间切换 */}
+        <div className="flex bg-gray-100 p-1 rounded-xl">
           <button
-            onClick={handleAddTextInputNode}
-            className="px-3 py-1.5 hover:bg-white rounded-lg transition-all text-[11px] font-bold text-gray-600 hover:text-black hover:shadow-sm"
+            onClick={() => onViewModeChange('canvas')}
+            className={`px-3 py-1.5 rounded-lg transition-all duration-200 flex items-center gap-1.5 text-[11px] font-bold ${
+              viewMode === 'canvas'
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-400 hover:text-gray-600'
+            }`}
           >
-            + 文本输入
+            <LayoutGrid size={13} />
+            画布
           </button>
           <button
-            onClick={handleAddImageInputNode}
-            className="px-3 py-1.5 hover:bg-white rounded-lg transition-all text-[11px] font-bold text-gray-600 hover:text-black hover:shadow-sm"
+            onClick={() => onViewModeChange('space')}
+            className={`px-3 py-1.5 rounded-lg transition-all duration-200 flex items-center gap-1.5 text-[11px] font-bold ${
+              viewMode === 'space'
+                ? 'bg-gray-900 text-white shadow-sm'
+                : 'text-gray-400 hover:text-gray-600'
+            }`}
           >
-            + 多模态参考
+            <Sparkles size={13} />
+            空间
           </button>
         </div>
-
-        <button
-          onClick={handleAddUnifiedNode}
-          className="px-5 py-2.5 bg-gray-900 text-white rounded-xl hover:bg-black transition-all duration-300 flex items-center space-x-2 shadow-xl shadow-gray-200 active:scale-95 group"
-        >
-          <div className="bg-white/20 p-1 rounded-lg group-hover:rotate-90 transition-transform duration-300">
-            <Plus size={14} className="text-white" />
-          </div>
-          <span className="text-sm font-bold">新生成节点</span>
-        </button>
 
         {/* 保存按钮 */}
         <button

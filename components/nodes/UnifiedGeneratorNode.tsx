@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Handle, Position, NodeProps, useReactFlow } from '@xyflow/react';
-import { ChevronDown, Loader2, Play } from 'lucide-react';
+import { ChevronDown, Play, Sparkles, Type, Image, Video, Music, Headphones } from 'lucide-react';
 import { generateTextWithDmx } from '@/services/TextService';
 import { generateImageWithDmx } from '@/services/ImageService';
 import { generateVideoKling, generateVideoDoubao, generateVideoSeedance20 } from '@/services/VideoService';
@@ -11,6 +11,14 @@ import { generateMusicInspiration, generateMusicCustom } from '@/services/MusicS
 import { TYPE_CONFIG, MODELS } from './unified-types';
 import type { NodeType, MusicGenerationMode, UnifiedNodeData } from './unified-types';
 import ConfigPanel from './ConfigPanel';
+
+const TYPE_ICONS: Record<NodeType, React.ReactNode> = {
+    text: <Type size={13} />,
+    image: <Image size={13} />,
+    video: <Video size={13} />,
+    audio: <Headphones size={13} />,
+    music: <Music size={13} />,
+};
 
 const UnifiedGeneratorNode = ({ id, data }: NodeProps) => {
     const { addNodes, addEdges, getNode, getEdges, getNodes, setNodes } = useReactFlow();
@@ -286,113 +294,197 @@ const UnifiedGeneratorNode = ({ id, data }: NodeProps) => {
     };
 
     const config = TYPE_CONFIG[nodeData.type];
-    const { border: borderColor, bg: bgColor, text: textColor, textMuted: textMutedColor, ring: ringColor } = config.classes;
+    const { accent, classes } = config;
     const availableModels = MODELS[nodeData.type];
 
     return (
-        <div className={`bg-white rounded-2xl shadow-xl border-2 ${borderColor} w-72 overflow-visible relative transition-all duration-300`}>
-            <Handle type="target" position={Position.Left} className="!w-3 !h-3 !-left-1.5 !bg-gray-200 !border-2 !border-white shadow-sm" />
+        <div className="w-72 relative">
+            {/* 连接点 */}
+            <Handle type="target" position={Position.Left} className="!w-2 !h-2 !-left-1 !bg-slate-300 !border-2 !border-white !shadow-sm !top-8" />
 
-            <div ref={typeMenuRef} className="p-3 border-b border-gray-100 relative">
-                <div
-                    className="flex items-center justify-between cursor-pointer group"
-                    onClick={() => setIsTypeMenuOpen(!isTypeMenuOpen)}
-                >
-                    <div className="flex items-center space-x-2">
-                        <span className={`text-lg font-bold ${textColor}`}>{nodeData.label}</span>
-                        <ChevronDown size={16} className={`${textMutedColor} group-hover:translate-y-0.5 transition-transform`} />
-                    </div>
-                    <div className="px-2 py-0.5 rounded text-[10px] font-bold bg-gray-100 text-gray-500 uppercase tracking-wider">
-                        {nodeData.type}
-                    </div>
-                </div>
-
-                {isTypeMenuOpen && (
-                    <div className="absolute top-12 left-2 right-2 bg-white/95 backdrop-blur-md shadow-2xl rounded-xl border border-gray-100 py-2 z-50">
-                        {(Object.keys(TYPE_CONFIG) as NodeType[]).map((type) => (
-                            <button
-                                key={type}
-                                onClick={() => handleTypeChange(type)}
-                                className={`w-full px-4 py-2 text-left text-sm flex items-center justify-between hover:bg-gray-50 transition-colors ${nodeData.type === type ? `${TYPE_CONFIG[type].classes.text} font-semibold ${TYPE_CONFIG[type].classes.bgMuted}` : 'text-gray-600'}`}
+            {/* 主容器 - 毛玻璃 */}
+            <div
+                className={`bg-white/80 backdrop-blur-xl rounded-2xl border transition-all duration-300 overflow-visible ${
+                    nodeData.isLoading
+                        ? 'border-slate-300/60 shadow-2xl shadow-slate-200/40'
+                        : `${classes.border} shadow-lg shadow-slate-200/30 hover:shadow-xl hover:shadow-slate-200/40`
+                }`}
+            >
+                {/* Header - 类型选择 */}
+                <div ref={typeMenuRef} className="px-4 pt-3 pb-2 relative">
+                    <div
+                        className="flex items-center justify-between cursor-pointer group"
+                        onClick={() => setIsTypeMenuOpen(!isTypeMenuOpen)}
+                    >
+                        <div className="flex items-center gap-2">
+                            <div
+                                className="w-6 h-6 rounded-md flex items-center justify-center transition-colors"
+                                style={{ backgroundColor: `${accent}15`, color: accent }}
                             >
-                                <span>{TYPE_CONFIG[type].label}</span>
-                                {nodeData.type === type && <div className={`w-1.5 h-1.5 rounded-full ${TYPE_CONFIG[type].classes.bg}`} />}
-                            </button>
-                        ))}
+                                {TYPE_ICONS[nodeData.type]}
+                            </div>
+                            <span className="text-[13px] font-semibold text-slate-800 tracking-tight">
+                                {nodeData.label}
+                            </span>
+                            <ChevronDown
+                                size={13}
+                                className="text-slate-300 group-hover:text-slate-500 transition-all group-hover:translate-y-0.5"
+                            />
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                            {nodeData.isLoading && (
+                                <div className="flex items-center gap-1">
+                                    <span className="relative flex h-2 w-2">
+                                        <span
+                                            className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75"
+                                            style={{ backgroundColor: accent }}
+                                        />
+                                        <span
+                                            className="relative inline-flex rounded-full h-2 w-2"
+                                            style={{ backgroundColor: accent }}
+                                        />
+                                    </span>
+                                </div>
+                            )}
+                        </div>
                     </div>
-                )}
-            </div>
 
-            <div className="p-4 space-y-4">
-                <div className="space-y-1.5">
-                    <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider px-1">模型</div>
-                    <div ref={modelMenuRef} className="relative group nodrag">
-                        <button
-                            type="button"
-                            onClick={() => setIsModelMenuOpen(prev => !prev)}
-                            className={`w-full pl-3 pr-8 py-2 bg-gray-50 border-none rounded-xl text-sm focus:ring-2 ${ringColor} transition-all cursor-pointer font-medium text-gray-700 text-left`}
-                        >
-                            {nodeData.model}
-                        </button>
-                        <ChevronDown size={14} className={`absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none transition-transform ${isModelMenuOpen ? 'rotate-180' : ''}`} />
-                        <div
-                            className={`absolute top-full left-0 right-0 mt-2 bg-white/95 backdrop-blur-md shadow-2xl rounded-xl border border-gray-100 py-1 z-50 origin-top transition-all duration-150 ${
-                                isModelMenuOpen
-                                    ? 'opacity-100 scale-100 translate-y-0 pointer-events-auto'
-                                    : 'opacity-0 scale-95 -translate-y-1 pointer-events-none'
-                            }`}
-                        >
-                            {availableModels.map((model) => (
+                    {/* 类型下拉菜单 */}
+                    {isTypeMenuOpen && (
+                        <div className="absolute top-12 left-3 right-3 bg-white/95 backdrop-blur-2xl shadow-2xl rounded-xl border border-slate-100 py-1.5 z-50">
+                            {(Object.keys(TYPE_CONFIG) as NodeType[]).map((type) => (
                                 <button
-                                    key={model}
-                                    type="button"
-                                    onClick={() => {
-                                        setNodeData(prev => {
-                                            if (prev.type !== 'video') {
-                                                return { ...prev, model };
-                                            }
-                                            return { ...prev, model, duration: 5 };
-                                        });
-                                        setIsModelMenuOpen(false);
-                                    }}
-                                    className={`w-full px-3 py-2 text-left text-sm transition-colors ${
-                                        nodeData.model === model
-                                            ? `${textColor} font-semibold bg-gray-50`
-                                            : 'text-gray-600 hover:bg-gray-50'
+                                    key={type}
+                                    onClick={() => handleTypeChange(type)}
+                                    className={`w-full px-3 py-2 text-left text-[13px] flex items-center justify-between hover:bg-slate-50/80 transition-colors ${
+                                        nodeData.type === type ? 'font-medium text-slate-900' : 'text-slate-500'
                                     }`}
                                 >
-                                    {model}
+                                    <div className="flex items-center gap-2">
+                                        <span
+                                            className="w-1.5 h-1.5 rounded-full"
+                                            style={{ backgroundColor: TYPE_CONFIG[type].accent }}
+                                        />
+                                        <span>{TYPE_CONFIG[type].label}</span>
+                                    </div>
+                                    {nodeData.type === type && (
+                                        <div
+                                            className="w-4 h-0.5 rounded-full"
+                                            style={{ backgroundColor: TYPE_CONFIG[type].accent }}
+                                        />
+                                    )}
                                 </button>
                             ))}
                         </div>
-                    </div>
+                    )}
                 </div>
 
-                <ConfigPanel nodeData={nodeData} setNodeData={setNodeData} bgColor={bgColor} ringColor={ringColor} />
-
-                <button
-                    onClick={handleGenerate}
-                    disabled={nodeData.isLoading}
-                    className={`w-full py-3 rounded-xl text-white font-bold text-sm shadow-lg hover:shadow-xl active:scale-[0.98] transition-all disabled:opacity-50 disabled:scale-100 ${bgColor} flex items-center justify-center space-x-2`}
-                >
-                    {nodeData.isLoading ? (
-                        <Loader2 size={18} className="animate-spin" />
-                    ) : (
-                        <>
-                            <Play size={16} fill="white" />
-                            <span>立即生成</span>
-                        </>
-                    )}
-                </button>
-
-                {errorMessage && (
-                    <div className="p-2 rounded-lg bg-red-50 text-red-500 text-[10px] font-medium border border-red-100">
-                        {errorMessage}
+                {/* 内容区域 */}
+                <div className="px-4 pb-4 space-y-3">
+                    {/* 模型选择 */}
+                    <div className="space-y-1.5">
+                        <div className="text-[10px] font-medium text-slate-400 uppercase tracking-wider px-0.5">模型</div>
+                        <div ref={modelMenuRef} className="relative group nodrag">
+                            <button
+                                type="button"
+                                onClick={() => setIsModelMenuOpen(prev => !prev)}
+                                className={`w-full px-3 py-2 bg-slate-50/80 border border-slate-100 rounded-xl text-[13px] focus:ring-2 ${classes.ring} transition-all cursor-pointer font-medium text-slate-600 text-left flex items-center justify-between hover:bg-slate-50`}
+                            >
+                                <span>{nodeData.model}</span>
+                                <ChevronDown size={12} className={`text-slate-300 transition-transform ${isModelMenuOpen ? 'rotate-180' : ''}`} />
+                            </button>
+                            <div
+                                className={`absolute top-full left-0 right-0 mt-1.5 bg-white/95 backdrop-blur-2xl shadow-2xl rounded-xl border border-slate-100 py-1 z-50 origin-top transition-all duration-200 ${
+                                    isModelMenuOpen
+                                        ? 'opacity-100 scale-100 translate-y-0 pointer-events-auto'
+                                        : 'opacity-0 scale-95 -translate-y-1 pointer-events-none'
+                                }`}
+                            >
+                                {availableModels.map((model) => (
+                                    <button
+                                        key={model}
+                                        type="button"
+                                        onClick={() => {
+                                            setNodeData(prev => {
+                                                if (prev.type !== 'video') {
+                                                    return { ...prev, model };
+                                                }
+                                                return { ...prev, model, duration: 5 };
+                                            });
+                                            setIsModelMenuOpen(false);
+                                        }}
+                                        className={`w-full px-3 py-2 text-left text-[13px] transition-colors ${
+                                            nodeData.model === model
+                                                ? 'text-slate-900 font-medium bg-slate-50/80'
+                                                : 'text-slate-500 hover:bg-slate-50/80'
+                                        }`}
+                                    >
+                                        {model}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
                     </div>
-                )}
+
+                    <ConfigPanel nodeData={nodeData} setNodeData={setNodeData} accent={accent} ringColor={classes.ring} />
+
+                    {/* 生成按钮 / 加载状态 */}
+                    <button
+                        onClick={handleGenerate}
+                        disabled={nodeData.isLoading}
+                        className={`w-full py-2.5 rounded-xl font-semibold text-[13px] transition-all duration-300 relative overflow-hidden ${
+                            nodeData.isLoading
+                                ? 'bg-slate-100 text-slate-400 cursor-wait'
+                                : 'text-white shadow-md active:scale-[0.98] hover:shadow-lg'
+                        }`}
+                        style={!nodeData.isLoading ? { backgroundColor: accent } : undefined}
+                    >
+                        {nodeData.isLoading ? (
+                            <div className="flex items-center justify-center gap-2.5">
+                                {/* 波浪加载动画 */}
+                                <div className="flex items-center gap-[3px]">
+                                    {[0, 1, 2, 3, 4].map((i) => (
+                                        <span
+                                            key={i}
+                                            className="w-[3px] rounded-full"
+                                            style={{
+                                                backgroundColor: accent,
+                                                height: '12px',
+                                                animation: `waveBar 1.2s ease-in-out ${i * 0.1}s infinite`,
+                                            }}
+                                        />
+                                    ))}
+                                </div>
+                                <span className="tracking-wide">生成中</span>
+                            </div>
+                        ) : (
+                            <div className="flex items-center justify-center gap-2">
+                                <Sparkles size={14} />
+                                <span>生成</span>
+                            </div>
+                        )}
+                    </button>
+
+                    {/* 错误提示 */}
+                    {errorMessage && (
+                        <div className="px-3 py-2 rounded-xl bg-red-50/80 border border-red-100/60 text-red-500 text-[11px] font-medium">
+                            {errorMessage}
+                        </div>
+                    )}
+                </div>
             </div>
 
-            <Handle type="source" position={Position.Right} className="!w-3 !h-3 !-right-1.5 !bg-gray-200 !border-2 !border-white shadow-sm" />
+            {/* 连接点 */}
+            <Handle type="source" position={Position.Right} className="!w-2 !h-2 !-right-1 !bg-slate-300 !border-2 !border-white !shadow-sm !top-8" />
+
+            {/* 加载动画 keyframes */}
+            <style dangerouslySetInnerHTML={{
+                __html: `
+                @keyframes waveBar {
+                    0%, 40%, 100% { height: 4px; opacity: 0.4; }
+                    20% { height: 14px; opacity: 1; }
+                }
+            `}} />
         </div>
     );
 };

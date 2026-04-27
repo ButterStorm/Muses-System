@@ -19,6 +19,7 @@ export interface UnifiedNodeData {
 export const TYPE_CONFIG: Record<NodeType, {
     label: string;
     color: string;
+    accent: string;
     classes: {
         border: string;
         bg: string;
@@ -26,37 +27,43 @@ export const TYPE_CONFIG: Record<NodeType, {
         text: string;
         textMuted: string;
         ring: string;
+        dot: string;
     };
     icon: string;
 }> = {
     text: {
         label: '文生文',
-        color: 'blue',
-        classes: { border: 'border-blue-400', bg: 'bg-blue-500', bgMuted: 'bg-blue-50/50', text: 'text-blue-600', textMuted: 'text-blue-400', ring: 'focus:ring-blue-500/20' },
+        color: 'slate',
+        accent: '#6366f1',
+        classes: { border: 'border-slate-200/80', bg: 'bg-slate-800', bgMuted: 'bg-slate-50', text: 'text-slate-700', textMuted: 'text-slate-400', ring: 'focus:ring-slate-500/20', dot: 'bg-indigo-400' },
         icon: 'text'
     },
     image: {
         label: '文生图',
-        color: 'green',
-        classes: { border: 'border-green-400', bg: 'bg-green-500', bgMuted: 'bg-green-50/50', text: 'text-green-600', textMuted: 'text-green-400', ring: 'focus:ring-green-500/20' },
+        color: 'emerald',
+        accent: '#34d399',
+        classes: { border: 'border-slate-200/80', bg: 'bg-slate-800', bgMuted: 'bg-slate-50', text: 'text-slate-700', textMuted: 'text-slate-400', ring: 'focus:ring-emerald-500/20', dot: 'bg-emerald-400' },
         icon: 'image'
     },
     video: {
         label: '文生视频',
-        color: 'indigo',
-        classes: { border: 'border-indigo-400', bg: 'bg-indigo-500', bgMuted: 'bg-indigo-50/50', text: 'text-indigo-600', textMuted: 'text-indigo-400', ring: 'focus:ring-indigo-500/20' },
+        color: 'violet',
+        accent: '#a78bfa',
+        classes: { border: 'border-slate-200/80', bg: 'bg-slate-800', bgMuted: 'bg-slate-50', text: 'text-slate-700', textMuted: 'text-slate-400', ring: 'focus:ring-violet-500/20', dot: 'bg-violet-400' },
         icon: 'video'
     },
     audio: {
         label: '文生音效',
-        color: 'purple',
-        classes: { border: 'border-purple-400', bg: 'bg-purple-500', bgMuted: 'bg-purple-50/50', text: 'text-purple-600', textMuted: 'text-purple-400', ring: 'focus:ring-purple-500/20' },
+        color: 'rose',
+        accent: '#fb7185',
+        classes: { border: 'border-slate-200/80', bg: 'bg-slate-800', bgMuted: 'bg-slate-50', text: 'text-slate-700', textMuted: 'text-slate-400', ring: 'focus:ring-rose-500/20', dot: 'bg-rose-400' },
         icon: 'audio'
     },
     music: {
         label: '文生音乐',
-        color: 'orange',
-        classes: { border: 'border-orange-400', bg: 'bg-orange-500', bgMuted: 'bg-orange-50/50', text: 'text-orange-600', textMuted: 'text-orange-400', ring: 'focus:ring-orange-500/20' },
+        color: 'amber',
+        accent: '#fbbf24',
+        classes: { border: 'border-slate-200/80', bg: 'bg-slate-800', bgMuted: 'bg-slate-50', text: 'text-slate-700', textMuted: 'text-slate-400', ring: 'focus:ring-amber-500/20', dot: 'bg-amber-400' },
         icon: 'music'
     },
 };

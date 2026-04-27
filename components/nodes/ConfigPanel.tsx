@@ -7,7 +7,7 @@ import type { MusicGenerationMode, UnifiedNodeData } from './unified-types';
 interface ConfigPanelProps {
     nodeData: UnifiedNodeData;
     setNodeData: React.Dispatch<React.SetStateAction<UnifiedNodeData>>;
-    bgColor: string;
+    accent: string;
     ringColor: string;
 }
 
@@ -47,18 +47,18 @@ function VideoDurationField({ duration, videoRange, ringColor, onChange }: Video
                         const next = Number.isNaN(parsed) ? 5 : Math.max(videoRange.min, Math.min(videoRange.max, parsed));
                         onChange(next);
                     }}
-                    className={`w-full pl-3 pr-10 py-2 bg-gray-50 border-none rounded-xl text-sm focus:ring-2 ${ringColor} transition-all font-medium text-gray-700`}
+                    className={`w-full pl-3 pr-10 py-2 bg-slate-50/80 border border-slate-100 rounded-xl text-[13px] focus:ring-2 ${ringColor} transition-all font-medium text-slate-600`}
                 />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 font-semibold">秒</span>
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-slate-400 font-medium">秒</span>
             </div>
-            <div className="px-1 text-[10px] text-gray-400">
-                范围：{videoRange.min}-{videoRange.max} 秒（默认 5 秒）
+            <div className="px-0.5 text-[10px] text-slate-400">
+                {videoRange.min}-{videoRange.max} 秒
             </div>
         </div>
     );
 }
 
-export default function ConfigPanel({ nodeData, setNodeData, bgColor, ringColor }: ConfigPanelProps) {
+export default function ConfigPanel({ nodeData, setNodeData, accent, ringColor }: ConfigPanelProps) {
     const voices = getAvailableVoices();
     const videoRange = useMemo(
         () => getVideoDurationRange(nodeData.model),
@@ -71,16 +71,16 @@ export default function ConfigPanel({ nodeData, setNodeData, bgColor, ringColor 
     );
 
     const label = nodeData.type === 'video'
-        ? '时长 (秒)'
+        ? '时长'
         : nodeData.type === 'audio'
             ? '音色'
             : nodeData.type === 'music'
                 ? '模式'
-                : '生成数量';
+                : '数量';
 
     return (
         <div className="space-y-1.5">
-            <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider px-1">{label}</div>
+            <div className="text-[10px] font-medium text-slate-400 uppercase tracking-wider px-0.5">{label}</div>
 
             {nodeData.type === 'video' ? (
                 <VideoDurationField
@@ -97,14 +97,19 @@ export default function ConfigPanel({ nodeData, setNodeData, bgColor, ringColor 
                     onChange={(value) => setNodeData(prev => ({ ...prev, voice: String(value) }))}
                 />
             ) : nodeData.type === 'music' ? (
-                <MusicConfig nodeData={nodeData} setNodeData={setNodeData} bgColor={bgColor} ringColor={ringColor} />
+                <MusicConfig nodeData={nodeData} setNodeData={setNodeData} accent={accent} ringColor={ringColor} />
             ) : (
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center gap-1.5">
                     {[1, 2, 3, 4].map(n => (
                         <button
                             key={n}
                             onClick={() => setNodeData(prev => ({ ...prev, count: n }))}
-                            className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${nodeData.count === n ? `${bgColor} text-white shadow-md` : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`}
+                            className={`flex-1 py-1.5 rounded-lg text-[12px] font-semibold transition-all duration-200 ${
+                                nodeData.count === n
+                                    ? 'text-white shadow-sm'
+                                    : 'bg-slate-50/80 border border-slate-100 text-slate-400 hover:text-slate-500 hover:bg-slate-50'
+                            }`}
+                            style={nodeData.count === n ? { backgroundColor: accent } : undefined}
                         >
                             {n}
                         </button>
@@ -148,13 +153,13 @@ function DropdownField({
             <button
                 type="button"
                 onClick={() => setIsOpen((prev) => !prev)}
-                className={`w-full pl-3 pr-8 py-2 bg-gray-50 border-none rounded-xl text-sm focus:ring-2 ${ringColor} transition-all cursor-pointer font-medium text-gray-700 text-left`}
+                className={`w-full pl-3 pr-8 py-2 bg-slate-50/80 border border-slate-100 rounded-xl text-[13px] focus:ring-2 ${ringColor} transition-all cursor-pointer font-medium text-slate-600 text-left hover:bg-slate-50`}
             >
                 {selected?.label || String(value)}
             </button>
-            <ChevronDown size={14} className={`absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+            <ChevronDown size={12} className={`absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none transition-transform ${isOpen ? 'rotate-180' : ''}`} />
             <div
-                className={`absolute top-full left-0 right-0 mt-2 bg-white/95 backdrop-blur-md shadow-2xl rounded-xl border border-gray-100 py-1 z-50 origin-top transition-all duration-150 ${
+                className={`absolute top-full left-0 right-0 mt-1.5 bg-white/95 backdrop-blur-2xl shadow-2xl rounded-xl border border-slate-100 py-1 z-50 origin-top transition-all duration-200 ${
                     isOpen
                         ? 'opacity-100 scale-100 translate-y-0 pointer-events-auto'
                         : 'opacity-0 scale-95 -translate-y-1 pointer-events-none'
@@ -168,10 +173,10 @@ function DropdownField({
                             onChange(option.value);
                             setIsOpen(false);
                         }}
-                        className={`w-full px-3 py-2 text-left text-sm transition-colors ${
+                        className={`w-full px-3 py-2 text-left text-[13px] transition-colors ${
                             value === option.value
-                                ? 'font-semibold text-gray-800 bg-gray-50'
-                                : 'text-gray-600 hover:bg-gray-50'
+                                ? 'font-medium text-slate-900 bg-slate-50/80'
+                                : 'text-slate-500 hover:bg-slate-50/80'
                         }`}
                     >
                         {option.label}
@@ -182,48 +187,55 @@ function DropdownField({
     );
 }
 
-function MusicConfig({ nodeData, setNodeData, bgColor, ringColor }: ConfigPanelProps) {
+function MusicConfig({ nodeData, setNodeData, accent, ringColor }: ConfigPanelProps) {
     return (
         <>
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center gap-1.5">
                 <button
                     onClick={() => setNodeData(prev => ({ ...prev, musicMode: 'inspiration' as MusicGenerationMode }))}
-                    className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${nodeData.musicMode === 'inspiration' ? `${bgColor} text-white shadow-md` : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`}
+                    className={`flex-1 py-1.5 rounded-lg text-[12px] font-semibold transition-all duration-200 ${
+                        nodeData.musicMode === 'inspiration' ? 'text-white shadow-sm' : 'bg-slate-50/80 border border-slate-100 text-slate-400 hover:text-slate-500'
+                    }`}
+                    style={nodeData.musicMode === 'inspiration' ? { backgroundColor: accent } : undefined}
                 >
                     灵感模式
                 </button>
                 <button
                     onClick={() => setNodeData(prev => ({ ...prev, musicMode: 'custom' as MusicGenerationMode }))}
-                    className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${nodeData.musicMode === 'custom' ? `${bgColor} text-white shadow-md` : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`}
+                    className={`flex-1 py-1.5 rounded-lg text-[12px] font-semibold transition-all duration-200 ${
+                        nodeData.musicMode === 'custom' ? 'text-white shadow-sm' : 'bg-slate-50/80 border border-slate-100 text-slate-400 hover:text-slate-500'
+                    }`}
+                    style={nodeData.musicMode === 'custom' ? { backgroundColor: accent } : undefined}
                 >
                     自定义模式
                 </button>
             </div>
             {nodeData.musicMode === 'inspiration' ? (
-                <div className="flex items-center justify-between px-1 py-1">
-                    <span className="text-[11px] font-bold text-gray-400">纯音乐</span>
+                <div className="flex items-center justify-between px-1 py-1.5">
+                    <span className="text-[11px] font-medium text-slate-400">纯音乐</span>
                     <button
                         onClick={() => setNodeData(prev => ({ ...prev, instrumental: !prev.instrumental }))}
-                        className={`w-10 h-5 rounded-full transition-all duration-200 ${nodeData.instrumental ? bgColor : 'bg-gray-200'}`}
+                        className={`w-9 h-5 rounded-full transition-all duration-200 relative`}
+                        style={{ backgroundColor: nodeData.instrumental ? accent : '#e2e8f0' }}
                     >
-                        <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${nodeData.instrumental ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                        <div className={`w-3.5 h-3.5 rounded-full bg-white shadow-sm transition-transform duration-200 absolute top-[3px] ${nodeData.instrumental ? 'left-[17px]' : 'left-[3px]'}`} />
                     </button>
                 </div>
             ) : (
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                     <input
                         type="text"
                         value={nodeData.songTitle}
                         onChange={(e) => setNodeData(prev => ({ ...prev, songTitle: e.target.value }))}
                         placeholder="歌曲标题"
-                        className={`w-full px-3 py-1.5 bg-gray-50 border-none rounded-lg text-xs focus:ring-2 ${ringColor} transition-all text-gray-700 placeholder:text-gray-300`}
+                        className={`w-full px-3 py-1.5 bg-slate-50/80 border border-slate-100 rounded-lg text-[12px] focus:ring-2 ${ringColor} transition-all text-slate-600 placeholder:text-slate-300`}
                     />
                     <input
                         type="text"
                         value={nodeData.songTags}
                         onChange={(e) => setNodeData(prev => ({ ...prev, songTags: e.target.value }))}
                         placeholder="风格标签，如 pop, upbeat"
-                        className={`w-full px-3 py-1.5 bg-gray-50 border-none rounded-lg text-xs focus:ring-2 ${ringColor} transition-all text-gray-700 placeholder:text-gray-300`}
+                        className={`w-full px-3 py-1.5 bg-slate-50/80 border border-slate-100 rounded-lg text-[12px] focus:ring-2 ${ringColor} transition-all text-slate-600 placeholder:text-slate-300`}
                     />
                 </div>
             )}
