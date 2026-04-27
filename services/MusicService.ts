@@ -1,8 +1,7 @@
 import axios from 'axios';
+import { API_TIMEOUTS, createApiClient } from './apiClient';
 
-const axiosClient = axios.create({
-  baseURL: '/api',
-});
+const axiosClient = createApiClient(API_TIMEOUTS.media);
 
 interface MusicGenerationResponse {
   songs: Array<{ audio_url: string; image_url: string }>;

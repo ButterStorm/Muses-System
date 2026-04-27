@@ -8,7 +8,6 @@ import {
   Edge,
   Connection,
   ConnectionMode,
-  Controls,
   Background,
   useEdgesState,
   useNodesState,
@@ -27,8 +26,11 @@ import TextInputNode from './nodes/TextInputNode';
 import ImageInputNode from './nodes/ImageInputNode';
 import Toolbar from './Toolbar';
 import AgentPanel from './AgentPanel';
+import ErrorBoundary from './ErrorBoundary';
 import { useProjectStore } from '@/stores/projectStore';
 import { useAuthStore } from '@/stores/authStore';
+import { cloneFlowState, cloneNodes } from '@/lib/flowHistory';
+import { getDefaultModel } from '@/lib/modelCatalog';
 import { toast } from 'sonner';
 
 // 撤销/重做历史管理
@@ -66,7 +68,7 @@ const initialNodes: Node[] = [
       label: '文生文',
       type: 'text',
       prompt: '',
-      model: 'gpt-5-mini',
+      model: getDefaultModel('text'),
       count: 1,
       duration: 10,
       voice: 'male-qn-qingse',
@@ -111,10 +113,7 @@ const FlowInner: React.FC<FlowCanvasProps> = ({ projectId }) => {
     setHistory(prev => {
       // 截断 redo 部分
       const truncated = prev.slice(0, historyIndex + 1);
-      const newEntry: HistoryEntry = {
-        nodes: JSON.parse(JSON.stringify(currentNodes)),
-        edges: JSON.parse(JSON.stringify(currentEdges)),
-      };
+      const newEntry = cloneFlowState(currentNodes, currentEdges);
       const updated = [...truncated, newEntry];
       // 限制历史长度
       if (updated.length > MAX_HISTORY) updated.shift();
@@ -130,8 +129,9 @@ const FlowInner: React.FC<FlowCanvasProps> = ({ projectId }) => {
     const newIndex = historyIndex - 1;
     const entry = history[newIndex];
     if (entry) {
-      setNodes(JSON.parse(JSON.stringify(entry.nodes)));
-      setEdges(JSON.parse(JSON.stringify(entry.edges)));
+      const cloned = cloneFlowState(entry.nodes, entry.edges);
+      setNodes(cloned.nodes);
+      setEdges(cloned.edges);
       setHistoryIndex(newIndex);
     }
     setTimeout(() => { isUndoRedoRef.current = false; }, 100);
@@ -144,8 +144,9 @@ const FlowInner: React.FC<FlowCanvasProps> = ({ projectId }) => {
     const newIndex = historyIndex + 1;
     const entry = history[newIndex];
     if (entry) {
-      setNodes(JSON.parse(JSON.stringify(entry.nodes)));
-      setEdges(JSON.parse(JSON.stringify(entry.edges)));
+      const cloned = cloneFlowState(entry.nodes, entry.edges);
+      setNodes(cloned.nodes);
+      setEdges(cloned.edges);
       setHistoryIndex(newIndex);
     }
     setTimeout(() => { isUndoRedoRef.current = false; }, 100);
@@ -197,7 +198,7 @@ const FlowInner: React.FC<FlowCanvasProps> = ({ projectId }) => {
         if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
         const selected = getNodes().filter(n => n.selected);
         if (selected.length > 0) {
-          clipboardRef.current = JSON.parse(JSON.stringify(selected));
+          clipboardRef.current = cloneNodes(selected);
           toast.success(`已复制 ${selected.length} 个节点`);
         }
       }
@@ -214,7 +215,7 @@ const FlowInner: React.FC<FlowCanvasProps> = ({ projectId }) => {
           const newId = `node-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
           idMap.set(n.id, newId);
           return {
-            ...JSON.parse(JSON.stringify(n)),
+            ...cloneNodes([n])[0],
             id: newId,
             position: { x: n.position.x + 40, y: n.position.y + 40 },
             selected: false,
@@ -281,7 +282,7 @@ const FlowInner: React.FC<FlowCanvasProps> = ({ projectId }) => {
     if (type === 'videoNode') data = { label, prompt: '', videoUrl: '', isLoading: false };
     if (type === 'audioNode') data = { label, prompt: '', audioUrl: '', output: '', isLoading: false };
     if (type === 'musicNode') data = { label, prompt: '', musicUrl: '', isLoading: false };
-    if (type === 'unifiedNode') data = { label, type: 'text', prompt: '', model: 'gpt-5-mini', count: 1, duration: 5, voice: 'zh_male_sunny', output: null, isLoading: false };
+    if (type === 'unifiedNode') data = { label, type: 'text', prompt: '', model: getDefaultModel('text'), count: 1, duration: 5, voice: 'zh_male_sunny', output: null, isLoading: false };
     if (type === 'textInputNode') data = { label, text: '' };
     if (type === 'imageInputNode') data = { label, imageUrls: [], videoUrls: [], audioUrls: [], imageUrl: '', videoUrl: '', audioUrl: '' };
 
@@ -340,7 +341,6 @@ const FlowInner: React.FC<FlowCanvasProps> = ({ projectId }) => {
             proOptions={{ hideAttribution: true }}
           >
             <Background color="#aaa" gap={16} />
-            <Controls position="top-right" />
           </ReactFlow>
         </div>
         <AgentPanel />
@@ -352,9 +352,11 @@ const FlowInner: React.FC<FlowCanvasProps> = ({ projectId }) => {
 // 外层组件 — 提供 ReactFlowProvider
 const FlowCanvas: React.FC<FlowCanvasProps> = ({ projectId }) => {
   return (
-    <ReactFlowProvider>
-      <FlowInner projectId={projectId} />
-    </ReactFlowProvider>
+    <ErrorBoundary>
+      <ReactFlowProvider>
+        <FlowInner projectId={projectId} />
+      </ReactFlowProvider>
+    </ErrorBoundary>
   );
 };
 

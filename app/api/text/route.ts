@@ -22,19 +22,19 @@ const TextGenerationSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    if (!DMX_API_KEY) {
-      return NextResponse.json(
-        { error: '服务器配置错误：API Key 未配置' },
-        { status: 500 }
-      );
-    }
-
     const body = await request.json();
     const validationResult = TextGenerationSchema.safeParse(body);
     if (!validationResult.success) {
       return NextResponse.json(
         { error: '输入验证失败', details: validationResult.error.format() },
         { status: 400 }
+      );
+    }
+
+    if (!DMX_API_KEY) {
+      return NextResponse.json(
+        { error: '服务器配置错误：API Key 未配置' },
+        { status: 500 }
       );
     }
 

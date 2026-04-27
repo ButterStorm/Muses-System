@@ -57,4 +57,18 @@ describe('Agent API Route', () => {
     expect(res.status).toBe(500);
     expect(data).toEqual({ error: 'AI 助手响应失败，请稍后重试' });
   });
+
+  it('should not leak SDK configuration details when the SDK mentions OPENAI_API_KEY', async () => {
+    mockedChat.mockRejectedValue(new Error('OPENAI_API_KEY is missing: sk-test-secret'));
+
+    const req = createRequest({ message: '你好' });
+
+    const res = await POST(req as never);
+    const data = await res.json();
+
+    expect(res.status).toBe(500);
+    expect(data.error).toBe('AI 服务配置异常，请联系管理员');
+    expect(data.error).not.toContain('OPENAI_API_KEY');
+    expect(data.error).not.toContain('sk-test-secret');
+  });
 });

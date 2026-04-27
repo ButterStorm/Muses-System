@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Handle, Position, NodeProps, NodeResizer } from '@xyflow/react';
-import { Video, Download, Play, Copy, Check } from 'lucide-react';
+import { Video, Download, Copy, Check } from 'lucide-react';
 
 interface VideoNodeData {
   label: string;
@@ -13,6 +13,21 @@ interface VideoNodeData {
 const VideoNode = ({ data, selected }: NodeProps) => {
   const nodeData = data as unknown as VideoNodeData;
   const [copied, setCopied] = React.useState(false);
+  const videoRef = React.useRef<HTMLVideoElement>(null);
+
+  const handlePreviewMouseEnter = () => {
+    videoRef.current?.play().catch(() => {
+      // Some browsers may block playback until the media can be played.
+    });
+  };
+
+  const handlePreviewMouseLeave = () => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    video.pause();
+    video.currentTime = 0;
+  };
 
   const handleDownload = () => {
     if (nodeData.videoUrl) {
@@ -51,22 +66,18 @@ const VideoNode = ({ data, selected }: NodeProps) => {
           className="!w-2 !h-2 !bg-indigo-300 !border-0"
         />
 
-        <div className="relative aspect-video rounded-[1.5rem] overflow-hidden bg-gray-50 group/video">
+        <div
+          className="relative aspect-video rounded-[1.5rem] overflow-hidden bg-gray-50 group/video"
+          onMouseEnter={handlePreviewMouseEnter}
+          onMouseLeave={handlePreviewMouseLeave}
+        >
           {nodeData.videoUrl ? (
             <>
               <video
+                ref={videoRef}
                 src={nodeData.videoUrl}
                 className="w-full h-full object-cover"
-                onMouseEnter={(e) => (e.target as HTMLVideoElement).play()}
-                onMouseLeave={(e) => {
-                  const v = (e.target as HTMLVideoElement);
-                  v.pause();
-                  v.currentTime = 0;
-                }}
               />
-              <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/video:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
-                <Play size={32} className="text-white drop-shadow-lg" fill="currentColor" />
-              </div>
 
               <div className="absolute bottom-3 right-3 flex items-center space-x-2 opacity-0 group-hover/video:opacity-100 translate-y-2 group-hover/video:translate-y-0 transition-all">
                 <button

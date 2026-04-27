@@ -1,3 +1,18 @@
+/** @jest-environment node */
+
+jest.mock('@supabase/supabase-js', () => ({
+  createClient: jest.fn(() => ({
+    from: jest.fn(() => ({
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({ data: null, error: null }),
+    })),
+  })),
+}));
+
+process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://example.supabase.co';
+process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-key';
+
 import { POST } from '@/app/api/invite-code/route';
 import { NextRequest } from 'next/server';
 

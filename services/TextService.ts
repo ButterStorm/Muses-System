@@ -1,8 +1,7 @@
 import axios from 'axios';
+import { API_TIMEOUTS, createApiClient } from './apiClient';
 
-const axiosClient = axios.create({
-  baseURL: '/api',
-});
+const axiosClient = createApiClient(API_TIMEOUTS.standard);
 
 interface ChatCompletionsResponse {
   text: string;
@@ -29,9 +28,6 @@ export const generateTextWithDmx = async (
         model,
         imageUrl,
       },
-      {
-        timeout: 120000,
-      }
     );
 
     const content = response.data?.text ?? '';
