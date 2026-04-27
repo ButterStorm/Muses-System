@@ -115,9 +115,10 @@ const AgentPanel: React.FC = () => {
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
-          className="absolute top-1/2 right-0 -translate-y-1/2 z-50
+          className="absolute bottom-4 right-4 z-50
+                     md:top-1/2 md:right-0 md:bottom-auto md:-translate-y-1/2
                      bg-gradient-to-r from-gray-800 to-gray-900
-                     text-white p-3 pl-4 rounded-l-xl
+                     text-white p-3 md:pl-4 rounded-xl md:rounded-l-xl md:rounded-r-none
                      shadow-lg hover:shadow-xl hover:scale-105 transition-all group"
           title="Open Agent"
         >
@@ -130,9 +131,10 @@ const AgentPanel: React.FC = () => {
 
       {/* Panel - 保持原始布局结构，但使用柔和配色 */}
       <div
-        className={`bg-white/90 backdrop-blur-xl shadow-2xl transition-all duration-300 ease-in-out flex flex-col border-l border-gray-200/60 h-full flex-shrink-0`}
+        className={`absolute inset-x-0 bottom-0 z-50 h-[min(80vh,640px)] w-full rounded-t-2xl border-t border-gray-200/60 bg-white/95 backdrop-blur-xl shadow-2xl transition-all duration-300 ease-in-out flex flex-col
+                    md:static md:h-full md:rounded-none md:border-t-0 md:border-l md:bg-white/90 md:flex-shrink-0 md:translate-y-0
+                    ${isOpen ? 'translate-y-0 md:w-[380px]' : 'translate-y-full md:w-0'}`}
         style={{
-          width: isOpen ? '380px' : '0px',
           opacity: isOpen ? 1 : 0,
           pointerEvents: isOpen ? 'auto' : 'none',
           overflow: 'hidden',

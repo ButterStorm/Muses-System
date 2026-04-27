@@ -1,5 +1,6 @@
 export type NodeType = 'text' | 'image' | 'video' | 'audio' | 'music';
 export type MusicGenerationMode = 'inspiration' | 'custom';
+export { MODELS } from '@/lib/modelCatalog';
 
 export interface UnifiedNodeData {
     label: string;
@@ -58,12 +59,4 @@ export const TYPE_CONFIG: Record<NodeType, {
         classes: { border: 'border-orange-400', bg: 'bg-orange-500', bgMuted: 'bg-orange-50/50', text: 'text-orange-600', textMuted: 'text-orange-400', ring: 'focus:ring-orange-500/20' },
         icon: 'music'
     },
-};
-
-export const MODELS: Record<NodeType, string[]> = {
-    text: ['gpt-5-mini', 'deepseek-v4-flash', 'deepseek-v4-pro', 'kimi-k2.5', 'doubao-seed-1-8-251228'],
-    image: ['doubao-seedream-5.0-lite', 'gemini-3-pro-image', 'gemini-2.5-flash-image', 'gpt-image-2'],
-    video: ['kling', 'doubao', 'seedance-2-0'],
-    audio: ['speech-2.6-hd'],
-    music: ['suno-v5'],
 };

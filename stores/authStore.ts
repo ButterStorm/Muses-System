@@ -43,15 +43,12 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   signIn: async (email, password) => {
     try {
-      console.log('Attempting signin with:', { email, supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL });
-
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) {
-        console.error('Signin error:', error);
         return { error: error.message };
       }
 
@@ -71,8 +68,6 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   signUp: async (email, password) => {
     try {
-      console.log('Attempting signup with:', { email, supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL });
-
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -82,7 +77,6 @@ export const useAuthStore = create<AuthState>((set) => ({
       });
 
       if (error) {
-        console.error('Signup error:', error);
         if (error.message?.includes('rate limit')) {
           return { error: '注册太频繁，请稍后再试。或者请联系管理员在后台手动确认您的账户。' };
         }

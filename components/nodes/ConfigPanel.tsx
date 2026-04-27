@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { getAvailableVoices } from '@/services/AudioService';
+import { getVideoDurationRange } from '@/lib/modelCatalog';
 import type { MusicGenerationMode, UnifiedNodeData } from './unified-types';
 
 interface ConfigPanelProps {
@@ -55,12 +56,6 @@ function VideoDurationField({ duration, videoRange, ringColor, onChange }: Video
             </div>
         </div>
     );
-}
-
-function getVideoDurationRange(model: string): { min: number; max: number } {
-    if (model === 'kling') return { min: 5, max: 10 };
-    if (model === 'seedance-2-0') return { min: 4, max: 15 };
-    return { min: 4, max: 12 };
 }
 
 export default function ConfigPanel({ nodeData, setNodeData, bgColor, ringColor }: ConfigPanelProps) {

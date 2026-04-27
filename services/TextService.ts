@@ -1,9 +1,8 @@
 import axios from 'axios';
 import { getTextModelTimeoutMs } from '@/lib/textModelTimeout';
+import { API_TIMEOUTS, createApiClient } from './apiClient';
 
-const axiosClient = axios.create({
-  baseURL: '/api',
-});
+const axiosClient = createApiClient(API_TIMEOUTS.standard);
 
 interface ChatCompletionsResponse {
   text: string;

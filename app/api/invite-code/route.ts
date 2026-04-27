@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { createRateLimiter } from '@/lib/rateLimit';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const inviteCodeLimiter = createRateLimiter({ limit: 8, windowMs: 10 * 60 * 1000 });
 
 function getServerClient() {
   if (!supabaseUrl || !supabaseServiceKey) {
@@ -39,6 +41,21 @@ export async function POST(request: NextRequest) {
 
     if (!code || !userId) {
       return NextResponse.json({ error: '缺少激活码或用户信息' }, { status: 400 });
+    }
+
+    const forwardedFor = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim();
+    const clientKey = `${forwardedFor || 'local'}:${userId}`;
+    const rateLimit = inviteCodeLimiter.check(clientKey);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: '尝试次数过多，请稍后再试' },
+        {
+          status: 429,
+          headers: {
+            'Retry-After': String(Math.ceil(rateLimit.retryAfterMs / 1000)),
+          },
+        }
+      );
     }
 
     const supabase = getServerClient();

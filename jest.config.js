@@ -9,7 +9,7 @@ const config = {
     '\\.(css|less|scss|sass)$': 'identity-obj-proxy',
   },
   testPathIgnorePatterns: ['<rootDir>/node_modules/', '<rootDir>/.next/'],
-  setupFilesAfterSetup: [],
+  setupFilesAfterEnv: [],
 };
 
 module.exports = config;

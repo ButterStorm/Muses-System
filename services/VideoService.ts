@@ -1,8 +1,7 @@
 import axios from 'axios';
+import { API_TIMEOUTS, createApiClient } from './apiClient';
 
-const axiosClient = axios.create({
-  baseURL: '/api',
-});
+const axiosClient = createApiClient(API_TIMEOUTS.video);
 
 interface VideoGenerationResponse {
   url: string;

@@ -10,7 +10,7 @@ function getSafeErrorMessage(error: unknown): string | null {
   }
 
   if (error.message.includes('OPENAI_API_KEY')) {
-    return error.message;
+    return 'AI 服务配置异常，请联系管理员';
   }
 
   return null;
@@ -39,10 +39,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(result);
   } catch (error) {
-    console.error('[Agent API] Error:', error);
-
-    const errorMessage = error instanceof Error ? error.message : '未知错误';
-    console.error('Error details:', errorMessage);
+    const errorName = error instanceof Error ? error.name : 'UnknownError';
+    console.error('[Agent API] Error:', errorName);
     const safeErrorMessage = getSafeErrorMessage(error);
 
     return NextResponse.json(
