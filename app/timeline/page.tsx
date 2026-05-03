@@ -2,10 +2,33 @@
 
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
+import { MODEL_CATALOG } from '@/lib/modelCatalog';
+
+const modelGroupLabels = {
+  text: '文本',
+  image: '图像',
+  video: '视频',
+  audio: '语音',
+  music: '音乐',
+} as const;
+
+const supportedModelGroups = Object.entries(MODEL_CATALOG).map(([type, models]) => ({
+  label: modelGroupLabels[type as keyof typeof modelGroupLabels],
+  models: models.map((model) => model.label),
+}));
 
 const milestones = [
   {
-    date: '2026 年 0501',
+    date: '2026 年 05 月 03 日',
+    title: 'MusesSystem 0.02',
+    description: '新增时间线页面、接入 HappyHorse 视频模型，并将后端助手切换到 Pi SDK 的最小实现。',
+    modelGroups: supportedModelGroups,
+    yearClass: 'bg-[#ffe1e8] text-[#5b172a]',
+    markerClass: 'bg-[#ff5c7a] border-[#e54866] text-[#ffe1e8]',
+    cardClass: 'hover:border-[#fda4b7] hover:shadow-[0_24px_60px_rgba(255,92,122,0.14)]',
+  },
+  {
+    date: '2026 年 05 月 01 日',
     title: 'MusesSystem 0.01',
     description: 'AI 创作系统启动，整合画布、内容生成与多模态工作流。',
     yearClass: 'bg-[#dbeafe] text-[#132f64]',
@@ -72,13 +95,35 @@ export default function TimelinePage() {
                       className={`col-start-2 row-start-1 ${isLeft ? 'md:col-start-1 md:mr-6 md:justify-self-end' : 'md:col-start-3 md:ml-6 md:justify-self-start'
                         }`}
                     >
-                      <div className={`w-full max-w-[22rem] rounded-md border border-[oklch(0.84_0.006_260)] bg-[oklch(0.99_0.004_260)]/78 p-2 shadow-[0_1px_0_rgba(38,35,48,0.04),0_18px_45px_rgba(64,58,82,0.07)] backdrop-blur-sm transition duration-300 hover:-translate-y-1 ${item.cardClass}`}>
+                      <div className={`w-full max-w-[28rem] rounded-md border border-[oklch(0.84_0.006_260)] bg-[oklch(0.99_0.004_260)]/78 p-2 shadow-[0_1px_0_rgba(38,35,48,0.04),0_18px_45px_rgba(64,58,82,0.07)] backdrop-blur-sm transition duration-300 hover:-translate-y-1 ${item.cardClass}`}>
                         <div className={`rounded px-5 py-4 text-lg font-bold ${item.yearClass}`}>
                           {item.date}
                         </div>
                         <div className="px-5 py-7">
                           <h2 className="text-2xl font-bold tracking-tight text-[oklch(0.17_0.018_276)]">{item.title}</h2>
                           <p className="mt-4 text-sm leading-6 text-[oklch(0.39_0.014_276)]">{item.description}</p>
+                          {'modelGroups' in item && item.modelGroups ? (
+                            <div className="mt-6 space-y-4">
+                              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[oklch(0.50_0.012_276)]">支持模型</p>
+                              <div className="space-y-3">
+                                {item.modelGroups.map((group) => (
+                                  <div key={group.label} className="grid gap-2 sm:grid-cols-[3.25rem_minmax(0,1fr)]">
+                                    <span className="text-sm font-semibold text-[oklch(0.20_0.018_276)]">{group.label}</span>
+                                    <div className="flex flex-wrap gap-2">
+                                      {group.models.map((model) => (
+                                        <span
+                                          key={model}
+                                          className="rounded-full border border-[oklch(0.86_0.010_276)] bg-white/70 px-2.5 py-1 text-xs font-medium text-[oklch(0.36_0.014_276)]"
+                                        >
+                                          {model}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ) : null}
                         </div>
                       </div>
                     </div>

@@ -11,6 +11,7 @@ const ContentSecurityPolicy = [
 
 const nextConfig = {
   outputFileTracingRoot: __dirname,
+  serverExternalPackages: ['@mariozechner/pi-coding-agent', '@mariozechner/pi-ai'],
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: '*.supabase.co' },
