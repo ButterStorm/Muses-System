@@ -21,7 +21,7 @@ const milestones = [
   {
     date: '2026 年 05 月 03 日',
     title: 'MusesSystem 0.02',
-    description: '新增时间线页面、接入 HappyHorse 视频模型，并将后端助手切换到 Pi SDK 的最小实现。',
+    description: '新增时间线页面、接入 HappyHorse 视频模型，并将agent助手进行切换。',
     modelGroups: supportedModelGroups,
     yearClass: 'bg-[#ffe1e8] text-[#5b172a]',
     markerClass: 'bg-[#ff5c7a] border-[#e54866] text-[#ffe1e8]',
