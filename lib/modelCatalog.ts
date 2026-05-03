@@ -29,6 +29,7 @@ export const MODEL_CATALOG: Record<NodeType, ModelOption[]> = {
     { id: 'kling', label: 'Kling' },
     { id: 'doubao', label: 'Doubao' },
     { id: 'seedance-2-0', label: 'Seedance 2.0' },
+    { id: 'happyhorse', label: 'HappyHorse 1.0' },
   ],
   audio: [
     { id: 'speech-2.6-hd', label: 'Speech 2.6 HD' },
@@ -48,6 +49,7 @@ export const MODELS: Record<NodeType, string[]> = Object.fromEntries(
 const VIDEO_DURATION_RANGES: Record<string, VideoDurationRange> = {
   kling: { min: 5, max: 10, defaultValue: 5 },
   'seedance-2-0': { min: 4, max: 15, defaultValue: 5 },
+  happyhorse: { min: 3, max: 15, defaultValue: 5 },
   doubao: { min: 4, max: 12, defaultValue: 5 },
 };
 

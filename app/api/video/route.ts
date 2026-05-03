@@ -4,6 +4,8 @@ import axios from 'axios';
 
 const DMX_API_KEY = process.env.DMX_API_KEY;
 const DMX_BASE_URL = 'https://www.dmxapi.cn';
+const DASHSCOPE_API_KEY = process.env.DASHSCOPE_API_KEY;
+const DASHSCOPE_BASE_URL = 'https://dashscope.aliyuncs.com';
 
 type AspectRatio = '9:16' | '16:9' | '1:1' | '4:3' | '3:4' | '21:9' | 'adaptive';
 
@@ -11,9 +13,9 @@ const urlArraySchema = z.array(z.string().url()).max(10);
 
 // 输入验证 schema
 const VideoGenerationSchema = z.object({
-  provider: z.enum(['kling', 'doubao', 'seedance-2-0']),
+  provider: z.enum(['kling', 'doubao', 'seedance-2-0', 'happyhorse']),
   prompt: z.string().min(1).max(4000),
-  duration: z.number().int().min(4).max(15).default(5),
+  duration: z.number().int().min(3).max(15).default(5),
   aspectRatio: z.enum(['9:16', '16:9', '1:1', '4:3', '3:4', '21:9', 'adaptive']).default('9:16'),
   imageUrl: z.string().url().optional(),
   imageUrls: urlArraySchema.optional(),
@@ -36,13 +38,6 @@ interface NormalizedReferences {
 
 export async function POST(request: NextRequest) {
   try {
-    if (!DMX_API_KEY) {
-      return NextResponse.json(
-        { error: '服务器配置错误：API Key 未配置' },
-        { status: 500 }
-      );
-    }
-
     const body = await request.json();
     const validationResult = VideoGenerationSchema.safeParse(body);
     if (!validationResult.success) {
@@ -57,11 +52,17 @@ export async function POST(request: NextRequest) {
 
     let videoUrl = '';
     if (provider === 'kling') {
+      ensureDmxApiKey();
       videoUrl = await generateKlingVideo(prompt, duration, aspectRatio, references.imageUrls[0]);
     } else if (provider === 'doubao') {
+      ensureDmxApiKey();
       videoUrl = await generateDoubaoVideo(prompt, duration, aspectRatio, references.imageUrls[0]);
-    } else {
+    } else if (provider === 'seedance-2-0') {
+      ensureDmxApiKey();
       videoUrl = await generateSeedance20Video(prompt, duration, aspectRatio, references);
+    } else {
+      ensureDashScopeApiKey();
+      videoUrl = await generateHappyHorseVideo(prompt, duration, aspectRatio);
     }
 
     return NextResponse.json({ url: videoUrl });
@@ -82,6 +83,18 @@ export async function POST(request: NextRequest) {
       { error: message },
       { status: 500 }
     );
+  }
+}
+
+function ensureDmxApiKey() {
+  if (!DMX_API_KEY) {
+    throw new Error('服务器配置错误：DMX_API_KEY 未配置');
+  }
+}
+
+function ensureDashScopeApiKey() {
+  if (!DASHSCOPE_API_KEY) {
+    throw new Error('服务器配置错误：DASHSCOPE_API_KEY 未配置');
   }
 }
 
@@ -379,6 +392,93 @@ async function generateSeedance20Video(
     async () => pollSeedance20(taskId),
     `Seedance 2.0 生成超时（task_id: ${taskId}）`
   );
+}
+
+async function generateHappyHorseVideo(
+  prompt: string,
+  duration: number,
+  ratio: AspectRatio
+): Promise<string> {
+  const happyHorseRatio = toHappyHorseRatio(ratio);
+  const happyHorseDuration = Math.min(15, Math.max(3, Math.round(duration)));
+
+  const response = await axios.post(
+    `${DASHSCOPE_BASE_URL}/api/v1/services/aigc/video-generation/video-synthesis`,
+    {
+      model: 'happyhorse-1.0-t2v',
+      input: { prompt },
+      parameters: {
+        resolution: '720P',
+        ratio: happyHorseRatio,
+        duration: happyHorseDuration,
+        watermark: false,
+      },
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${DASHSCOPE_API_KEY}`,
+        'Content-Type': 'application/json',
+        'X-DashScope-Async': 'enable',
+      },
+      validateStatus: () => true,
+    }
+  );
+
+  const body = response.data;
+  if (response.status >= 400 || body?.code) {
+    const msg = body?.message || body?.error?.message || JSON.stringify(body);
+    throw new Error(`HappyHorse 提交失败: ${msg}`);
+  }
+
+  const taskId = body?.output?.task_id;
+  if (!taskId) {
+    const msg = body?.message || JSON.stringify(body);
+    throw new Error(`HappyHorse 提交失败: 无法提取任务ID${msg ? ` (${msg})` : ''}`);
+  }
+
+  console.info(`[Video API][HappyHorse] 任务已提交 task_id=${taskId}`);
+  return pollWithTimeout(
+    async () => pollHappyHorse(taskId),
+    `HappyHorse 生成超时（task_id: ${taskId}）`
+  );
+}
+
+function toHappyHorseRatio(ratio: AspectRatio): '16:9' | '9:16' | '1:1' | '4:3' | '3:4' {
+  if (ratio === '16:9' || ratio === '9:16' || ratio === '1:1' || ratio === '4:3' || ratio === '3:4') {
+    return ratio;
+  }
+  return '16:9';
+}
+
+async function pollHappyHorse(taskId: string): Promise<string | null> {
+  const response = await axios.get(
+    `${DASHSCOPE_BASE_URL}/api/v1/tasks/${encodeURIComponent(taskId)}`,
+    {
+      headers: {
+        Authorization: `Bearer ${DASHSCOPE_API_KEY}`,
+      },
+      validateStatus: () => true,
+    }
+  );
+
+  const result = response.data;
+  if (response.status >= 400 || result?.code) {
+    const msg = result?.message || result?.output?.message || JSON.stringify(result);
+    throw new Error(`HappyHorse 查询失败: ${msg}`);
+  }
+
+  const output = result?.output as Record<string, unknown> | undefined;
+  const status = typeof output?.task_status === 'string' ? output.task_status : null;
+  const videoUrl = typeof output?.video_url === 'string' ? sanitizeUrl(output.video_url) : extractVideoUrl(result);
+  if (videoUrl) return videoUrl;
+
+  if (status === 'FAILED' || status === 'CANCELED' || status === 'UNKNOWN') {
+    const code = typeof output?.code === 'string' ? output.code : '';
+    const message = typeof output?.message === 'string' ? output.message : JSON.stringify(output || result);
+    throw new Error(`HappyHorse 生成失败（status: ${status}${code ? `, code: ${code}` : ''}, task_id: ${taskId}）：${message}`);
+  }
+
+  return null;
 }
 
 async function pollSeedance20(taskId: string): Promise<string | null> {

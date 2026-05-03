@@ -5,7 +5,7 @@ import { Handle, Position, NodeProps, useReactFlow } from '@xyflow/react';
 import { ChevronDown, Play, Sparkles, Type, Image, Video, Music, Headphones } from 'lucide-react';
 import { generateTextWithDmx } from '@/services/TextService';
 import { generateImageWithDmx } from '@/services/ImageService';
-import { generateVideoKling, generateVideoDoubao, generateVideoSeedance20 } from '@/services/VideoService';
+import { generateVideoKling, generateVideoDoubao, generateVideoSeedance20, generateVideoHappyHorse } from '@/services/VideoService';
 import { textToSpeech } from '@/services/AudioService';
 import { generateMusicInspiration, generateMusicCustom } from '@/services/MusicService';
 import { TYPE_CONFIG, MODELS } from './unified-types';
@@ -197,6 +197,12 @@ const UnifiedGeneratorNode = ({ id, data }: NodeProps) => {
                                     videoUrls: collectedVideoUrls,
                                     audioUrls: collectedAudioUrls,
                                 },
+                            });
+                        } else if (nodeData.model === 'happyhorse') {
+                            const happyHorseDuration = Math.min(15, Math.max(3, Math.round(requestedDuration)));
+                            generationResults = await generateVideoHappyHorse(promptToUse, {
+                                duration: happyHorseDuration,
+                                ratio: '16:9',
                             });
                         } else {
                             const doubaoDuration = Math.min(12, Math.max(4, Math.round(requestedDuration)));

@@ -10,7 +10,7 @@ import Galaxy from '@/components/Galaxy';
 
 const translations = {
   en: {
-    nav: { home: 'Home', canvas: 'Canvas', works: 'Works', login: 'LOGIN' },
+    nav: { home: 'Home', canvas: 'Canvas', works: 'Works', timeline: 'Timeline', login: 'LOGIN' },
     hero: {
       badge: 'Available for Work',
       title: 'Design Your Future with Passion & Purpose',
@@ -41,7 +41,7 @@ const translations = {
     }
   },
   zh: {
-    nav: { home: '首页', canvas: '画布', works: '作品', login: '登录' },
+    nav: { home: '首页', canvas: '画布', works: '作品', timeline: '时间线', login: '登录' },
     hero: {
       badge: '接受项目预订',
       title: '用激情与目标设计未来',
@@ -219,6 +219,7 @@ const LandingPage: React.FC = () => {
               {t.nav.canvas}
             </Link>
             <Link href="/projects" className="text-gray-300 hover:text-white transition-colors text-sm font-medium">{t.nav.works}</Link>
+            <Link href="/timeline" className="text-gray-300 hover:text-white transition-colors text-sm font-medium">{t.nav.timeline}</Link>
 
             <button
               onClick={() => setLang(lang === 'en' ? 'zh' : 'en')}

@@ -140,3 +140,39 @@ export const generateVideoSeedance20 = async (
     throw error instanceof Error ? error : new Error('网络异常或未知错误');
   }
 };
+
+/**
+ * 生成阿里云 DashScope HappyHorse 1.0 文生视频
+ */
+export const generateVideoHappyHorse = async (
+  prompt: string,
+  options: {
+    duration?: number;
+    ratio?: '16:9' | '9:16' | '1:1' | '4:3' | '3:4';
+  } = {}
+): Promise<string> => {
+  const { duration = 5, ratio = '16:9' } = options;
+
+  try {
+    const response = await axiosClient.post<VideoGenerationResponse>('/video', {
+      provider: 'happyhorse',
+      prompt,
+      duration,
+      aspectRatio: ratio,
+    });
+
+    const videoUrl = response.data?.url;
+    if (!videoUrl) {
+      throw new Error('视频生成失败：未返回有效 URL');
+    }
+
+    return videoUrl;
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      const data = error.response?.data as VideoGenerationError | undefined;
+      const errorMessage = data?.error || error.message || '视频生成失败';
+      throw new Error(errorMessage);
+    }
+    throw error instanceof Error ? error : new Error('网络异常或未知错误');
+  }
+};
