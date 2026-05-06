@@ -1,13 +1,8 @@
 import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 
-const R2_ACCOUNT_ID = process.env.R2_ACCOUNT_ID || '4b707dcf025c337cca8d81f26929f781';
-const R2_ENDPOINT =
-  process.env.R2_ENDPOINT ||
-  `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`;
-const R2_BUCKET = process.env.R2_BUCKET || 'test';
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+export const MAX_UPLOAD_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
-const ALLOWED_MIME_TYPES: string[] = [
+export const ALLOWED_UPLOAD_MIME_TYPES: string[] = [
   'image/jpeg',
   'image/png',
   'image/webp',
@@ -27,29 +22,48 @@ const ALLOWED_MIME_TYPES: string[] = [
 interface R2Config {
   accessKeyId: string;
   secretAccessKey: string;
+  endpoint: string;
+  bucket: string;
   publicBaseUrl: string;
 }
 
 function getR2Config(): R2Config {
   const accessKeyId = process.env.R2_ACCESS_KEY_ID;
   const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
+  const accountId = process.env.R2_ACCOUNT_ID;
+  const endpoint = process.env.R2_ENDPOINT;
+  const bucket = process.env.R2_BUCKET;
   const publicBaseUrl = process.env.R2_PUBLIC_BASE_URL;
 
   if (!accessKeyId || !secretAccessKey) {
     throw new Error('R2 配置错误：缺少 R2_ACCESS_KEY_ID 或 R2_SECRET_ACCESS_KEY');
   }
 
+  if (!endpoint && !accountId) {
+    throw new Error('R2 配置错误：缺少 R2_ACCOUNT_ID');
+  }
+
+  if (!bucket) {
+    throw new Error('R2 配置错误：缺少 R2_BUCKET');
+  }
+
   if (!publicBaseUrl) {
     throw new Error('R2 配置错误：缺少 R2_PUBLIC_BASE_URL');
   }
 
-  return { accessKeyId, secretAccessKey, publicBaseUrl };
+  return {
+    accessKeyId,
+    secretAccessKey,
+    endpoint: endpoint || `https://${accountId}.r2.cloudflarestorage.com`,
+    bucket,
+    publicBaseUrl,
+  };
 }
 
 function getR2Client(config: R2Config) {
   return new S3Client({
     region: 'auto',
-    endpoint: R2_ENDPOINT,
+    endpoint: config.endpoint,
     forcePathStyle: true,
     credentials: {
       accessKeyId: config.accessKeyId,
@@ -80,11 +94,11 @@ export async function uploadBuffer(
   contentType: string,
   ext: string
 ): Promise<string> {
-  if (buffer.byteLength > MAX_FILE_SIZE) {
-    throw new Error(`文件大小超过限制（最大 ${MAX_FILE_SIZE / 1024 / 1024}MB）`);
+  if (buffer.byteLength > MAX_UPLOAD_FILE_SIZE) {
+    throw new Error(`文件大小超过限制（最大 ${MAX_UPLOAD_FILE_SIZE / 1024 / 1024}MB）`);
   }
 
-  if (!ALLOWED_MIME_TYPES.includes(contentType)) {
+  if (!ALLOWED_UPLOAD_MIME_TYPES.includes(contentType)) {
     throw new Error(`不支持的文件类型: ${contentType}`);
   }
 
@@ -94,7 +108,7 @@ export async function uploadBuffer(
 
   await client.send(
     new PutObjectCommand({
-      Bucket: R2_BUCKET,
+      Bucket: config.bucket,
       Key: key,
       Body: Buffer.from(buffer),
       ContentType: contentType,

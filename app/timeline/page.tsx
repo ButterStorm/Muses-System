@@ -1,49 +1,9 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
-import { MODEL_CATALOG } from '@/lib/modelCatalog';
-
-const modelGroupLabels = {
-  text: '文本',
-  image: '图像',
-  video: '视频',
-  audio: '语音',
-  music: '音乐',
-} as const;
-
-const supportedModelGroups = Object.entries(MODEL_CATALOG).map(([type, models]) => ({
-  label: modelGroupLabels[type as keyof typeof modelGroupLabels],
-  models: models.map((model) => model.label),
-}));
-
-const milestones = [
-  {
-    date: '2026 年 05 月 03 日',
-    title: 'MusesSystem 0.02',
-    description: '新增时间线页面、接入 HappyHorse 视频模型，并将agent助手进行切换。',
-    modelGroups: supportedModelGroups,
-    yearClass: 'bg-[#ffe1e8] text-[#5b172a]',
-    markerClass: 'bg-[#ff5c7a] border-[#e54866] text-[#ffe1e8]',
-    cardClass: 'hover:border-[#fda4b7] hover:shadow-[0_24px_60px_rgba(255,92,122,0.14)]',
-  },
-  {
-    date: '2026 年 05 月 01 日',
-    title: 'MusesSystem 0.01',
-    description: 'AI 创作系统启动，整合画布、内容生成与多模态工作流。',
-    yearClass: 'bg-[#dbeafe] text-[#132f64]',
-    markerClass: 'bg-[#3b82f6] border-[#2563eb] text-[#dbeafe]',
-    cardClass: 'hover:border-[#93c5fd] hover:shadow-[0_24px_60px_rgba(59,130,246,0.14)]',
-  },
-  {
-    date: '2023 年 - 2025 年',
-    title: '技术沉淀',
-    description: '完成核心 AI 能力和产品基础设施的早期积累。',
-    yearClass: 'bg-[#dcfce7] text-[#0f3f2c]',
-    markerClass: 'bg-[#f8f8f6] border-[#10b981] text-[#10b981]',
-    cardClass: 'hover:border-[#86efac] hover:shadow-[0_24px_60px_rgba(16,185,129,0.14)]',
-  },
-];
+import { timelineMilestones } from '@/lib/timelineMilestones';
 
 export default function TimelinePage() {
   return (
@@ -54,7 +14,14 @@ export default function TimelinePage() {
             <ArrowLeft className="w-4 h-4" />
           </Link>
           <div className="flex items-center gap-2">
-            <img src="/bs_logo.jpeg" alt="BS Logo" className="w-8 h-8 rounded-lg" />
+            <Image
+              src="/bs_logo.jpeg"
+              alt="BS Logo"
+              width={32}
+              height={32}
+              className="rounded-lg"
+              priority
+            />
             <span className="text-sm sm:text-base font-semibold text-zinc-50">MusesSystem</span>
           </div>
           <span className="hidden sm:block h-5 w-px bg-white/15" />
@@ -76,7 +43,7 @@ export default function TimelinePage() {
             <div className="absolute bottom-8 left-4 top-8 w-px bg-[repeating-linear-gradient(to_bottom,#3b82f6_0_10px,transparent_10px_18px,#10b981_18px_28px,transparent_28px_36px,#ff5c7a_36px_46px,transparent_46px_54px)] opacity-55 md:left-1/2 md:-translate-x-px" />
 
             <div className="space-y-12 md:space-y-0">
-              {milestones.map((item, index) => {
+              {timelineMilestones.map((item, index) => {
                 const isLeft = index % 2 === 0;
 
                 return (

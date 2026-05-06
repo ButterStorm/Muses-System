@@ -42,4 +42,34 @@ describe('Upload API Route', () => {
     expect(res.status).toBe(400);
     expect(data).toEqual({ error: '缺少上传文件' });
   });
+
+  it('rejects unsupported file types before calling storage', async () => {
+    const formData = new FormData();
+    formData.append('file', new File(['demo'], 'demo.txt', { type: 'text/plain' }));
+    const req = {
+      formData: async () => formData,
+    };
+
+    const res = await POST(req as never);
+    const data = await res.json();
+
+    expect(res.status).toBe(415);
+    expect(data).toEqual({ error: '不支持的文件类型: text/plain' });
+    expect(mockedUploadBuffer).not.toHaveBeenCalled();
+  });
+
+  it('rejects oversized files before calling storage', async () => {
+    const formData = new FormData();
+    formData.append('file', new File([new Uint8Array(10 * 1024 * 1024 + 1)], 'large.png', { type: 'image/png' }));
+    const req = {
+      formData: async () => formData,
+    };
+
+    const res = await POST(req as never);
+    const data = await res.json();
+
+    expect(res.status).toBe(413);
+    expect(data).toEqual({ error: '文件大小超过限制（最大 10MB）' });
+    expect(mockedUploadBuffer).not.toHaveBeenCalled();
+  });
 });

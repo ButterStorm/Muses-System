@@ -21,6 +21,8 @@ describe('r2Storage', () => {
       ...originalEnv,
       R2_ACCESS_KEY_ID: 'access-key',
       R2_SECRET_ACCESS_KEY: 'secret-key',
+      R2_ACCOUNT_ID: 'account-id',
+      R2_BUCKET: 'uploads',
       R2_PUBLIC_BASE_URL: 'https://assets.example.com',
     };
   });
@@ -43,11 +45,28 @@ describe('r2Storage', () => {
     expect(url).toMatch(/^https:\/\/assets\.example\.com\/uploads\/.+\.jpg$/);
     expect(mockedPutObjectCommand).toHaveBeenCalledWith(
       expect.objectContaining({
-        Bucket: 'test',
+        Bucket: 'uploads',
         ContentType: 'image/jpeg',
       })
     );
+    expect(mockedS3Client).toHaveBeenCalledWith(
+      expect.objectContaining({
+        endpoint: 'https://account-id.r2.cloudflarestorage.com',
+      })
+    );
     expect(client.send).toHaveBeenCalled();
+  });
+
+  it('fails fast when the R2 account id is not configured', async () => {
+    delete process.env.R2_ACCOUNT_ID;
+
+    await expect(uploadBuffer(new Uint8Array([1]).buffer, 'image/jpeg', 'jpg')).rejects.toThrow('R2_ACCOUNT_ID');
+  });
+
+  it('fails fast when the R2 bucket is not configured', async () => {
+    delete process.env.R2_BUCKET;
+
+    await expect(uploadBuffer(new Uint8Array([1]).buffer, 'image/jpeg', 'jpg')).rejects.toThrow('R2_BUCKET');
   });
 
   it('fails fast when R2 public URL is not configured', async () => {

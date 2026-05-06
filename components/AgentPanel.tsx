@@ -40,6 +40,11 @@ const AgentPanel: React.FC = () => {
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return;
 
+    const history = messages
+      .filter((message) => message.id !== 'welcome')
+      .slice(-12)
+      .map(({ role, content }) => ({ role, content }));
+
     const userMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
@@ -58,6 +63,7 @@ const AgentPanel: React.FC = () => {
         body: JSON.stringify({
           message: userMessage.content,
           model: 'openai:gpt-4o',
+          history,
         }),
       });
 

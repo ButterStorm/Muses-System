@@ -43,6 +43,26 @@ describe('Agent API Route', () => {
     expect(mockedChat).toHaveBeenCalledWith({
       message: '你好',
       model: 'openai:gpt-4o',
+      history: undefined,
+    });
+  });
+
+  it('should pass bounded chat history to the SDK', async () => {
+    mockedChat.mockResolvedValue({ response: '可以继续。' });
+
+    const history = [
+      { role: 'user', content: '我在做图片生成' },
+      { role: 'assistant', content: '好的，我会结合这个方向。' },
+    ];
+    const req = createRequest({ message: '下一步呢？', history });
+
+    const res = await POST(req as never);
+
+    expect(res.status).toBe(200);
+    expect(mockedChat).toHaveBeenCalledWith({
+      message: '下一步呢？',
+      model: undefined,
+      history,
     });
   });
 

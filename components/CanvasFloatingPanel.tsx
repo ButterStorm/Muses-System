@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Plus, GripVertical, Type, ImagePlus, Sparkles } from 'lucide-react';
 
 interface CanvasFloatingPanelProps {
@@ -14,8 +14,22 @@ const CanvasFloatingPanel: React.FC<CanvasFloatingPanelProps> = ({ onAddNode }) 
   const dragOffset = useRef({ x: 0, y: 0 });
   const panelRef = useRef<HTMLDivElement>(null);
 
-  const handleMouseDown = (e: React.MouseEvent) => {
+  const clampPosition = useCallback((nextX: number, nextY: number) => {
+    const rect = panelRef.current?.getBoundingClientRect();
+    const panelWidth = rect?.width || 0;
+    const panelHeight = rect?.height || 0;
+    const maxX = Math.max(0, window.innerWidth - panelWidth);
+    const maxY = Math.max(0, window.innerHeight - panelHeight);
+
+    return {
+      x: Math.min(Math.max(0, nextX), maxX),
+      y: Math.min(Math.max(0, nextY), maxY),
+    };
+  }, []);
+
+  const handlePointerDown = (e: React.PointerEvent) => {
     if ((e.target as HTMLElement).closest('button')) return;
+    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
     setDragging(true);
     dragOffset.current = {
       x: e.clientX - position.x,
@@ -25,20 +39,22 @@ const CanvasFloatingPanel: React.FC<CanvasFloatingPanelProps> = ({ onAddNode }) 
 
   useEffect(() => {
     if (!dragging) return;
-    const handleMouseMove = (e: MouseEvent) => {
-      setPosition({
-        x: e.clientX - dragOffset.current.x,
-        y: e.clientY - dragOffset.current.y,
-      });
+    const handlePointerMove = (e: PointerEvent) => {
+      setPosition(clampPosition(
+        e.clientX - dragOffset.current.x,
+        e.clientY - dragOffset.current.y
+      ));
     };
-    const handleMouseUp = () => setDragging(false);
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
+    const handlePointerUp = () => setDragging(false);
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+    window.addEventListener('pointercancel', handlePointerUp);
     return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener('pointercancel', handlePointerUp);
     };
-  }, [dragging]);
+  }, [clampPosition, dragging]);
 
   return (
     <div
@@ -49,8 +65,8 @@ const CanvasFloatingPanel: React.FC<CanvasFloatingPanelProps> = ({ onAddNode }) 
       <div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-xl shadow-black/8 border border-gray-200/60 overflow-hidden">
         {/* Header - draggable */}
         <div
-          onMouseDown={handleMouseDown}
-          className={`flex items-center justify-between px-3 py-2 border-b border-gray-100 cursor-grab active:cursor-grabbing ${dragging ? 'bg-gray-50' : 'hover:bg-gray-50/50'} transition-colors`}
+          onPointerDown={handlePointerDown}
+          className={`flex touch-none items-center justify-between px-3 py-2 border-b border-gray-100 cursor-grab active:cursor-grabbing ${dragging ? 'bg-gray-50' : 'hover:bg-gray-50/50'} transition-colors`}
         >
           <div className="flex items-center gap-1.5">
             <GripVertical size={12} className="text-gray-300" />

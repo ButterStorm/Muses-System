@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { uploadBuffer } from '@/lib/serverStorage';
+import { ALLOWED_UPLOAD_MIME_TYPES, MAX_UPLOAD_FILE_SIZE } from '@/lib/r2Storage';
 
 export const runtime = 'nodejs';
 
@@ -25,8 +26,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '缺少上传文件' }, { status: 400 });
     }
 
+    if (file.size === 0) {
+      return NextResponse.json({ error: '上传文件不能为空' }, { status: 400 });
+    }
+
     const ext = getExtensionFromFile(file, formData.get('ext'));
     const contentType = file.type || 'application/octet-stream';
+
+    if (!ALLOWED_UPLOAD_MIME_TYPES.includes(contentType)) {
+      return NextResponse.json({ error: `不支持的文件类型: ${contentType}` }, { status: 415 });
+    }
+
+    if (file.size > MAX_UPLOAD_FILE_SIZE) {
+      return NextResponse.json(
+        { error: `文件大小超过限制（最大 ${MAX_UPLOAD_FILE_SIZE / 1024 / 1024}MB）` },
+        { status: 413 }
+      );
+    }
+
     const url = await uploadBuffer(await file.arrayBuffer(), contentType, ext);
 
     return NextResponse.json({ url });
@@ -40,6 +57,11 @@ export async function POST(request: NextRequest) {
         ? (error as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode
         : undefined,
     } : error);
-    return NextResponse.json({ error: message }, { status: 500 });
+    const status = message.startsWith('不支持的文件类型')
+      ? 415
+      : message.startsWith('文件大小超过限制')
+        ? 413
+        : 500;
+    return NextResponse.json({ error: message }, { status });
   }
 }

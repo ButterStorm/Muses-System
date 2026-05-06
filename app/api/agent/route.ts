@@ -20,6 +20,10 @@ function getSafeErrorMessage(error: unknown): string | null {
 const AgentChatSchema = z.object({
   message: z.string().min(1).max(4000),
   model: z.string().optional(),
+  history: z.array(z.object({
+    role: z.enum(['user', 'assistant']),
+    content: z.string().min(1).max(4000),
+  })).max(12).optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -34,8 +38,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { message, model } = validationResult.data;
-    const result = await chat({ message, model });
+    const { message, model, history } = validationResult.data;
+    const result = await chat({ message, model, history });
 
     return NextResponse.json(result);
   } catch (error) {

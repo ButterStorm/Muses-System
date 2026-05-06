@@ -5,6 +5,34 @@ const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
 
 const WINDOW_MS = 60 * 1000; // 1 分钟窗口
 const MAX_REQUESTS = 50; // 每个 IP 每分钟最多 50 次请求
+const MAX_TRACKED_KEYS = 10_000;
+let cleanupIntervalMs = 60_000;
+let lastCleanupTime = 0;
+
+function cleanupExpiredRecords(now: number) {
+  if (now - lastCleanupTime < cleanupIntervalMs && rateLimitMap.size <= MAX_TRACKED_KEYS) {
+    return;
+  }
+
+  lastCleanupTime = now;
+  for (const [key, value] of rateLimitMap) {
+    if (now > value.resetTime) {
+      rateLimitMap.delete(key);
+    }
+  }
+
+  if (rateLimitMap.size <= MAX_TRACKED_KEYS) {
+    return;
+  }
+
+  const overflow = rateLimitMap.size - MAX_TRACKED_KEYS;
+  let removed = 0;
+  for (const key of rateLimitMap.keys()) {
+    rateLimitMap.delete(key);
+    removed++;
+    if (removed >= overflow) break;
+  }
+}
 
 function getRateLimitKey(request: NextRequest): string {
   const forwarded = request.headers.get('x-forwarded-for');
@@ -20,6 +48,7 @@ export function middleware(request: NextRequest) {
 
   const key = getRateLimitKey(request);
   const now = Date.now();
+  cleanupExpiredRecords(now);
   const record = rateLimitMap.get(key);
 
   if (!record || now > record.resetTime) {
@@ -37,13 +66,6 @@ export function middleware(request: NextRequest) {
     );
   }
 
-  // 定期清理过期记录
-  if (Math.random() < 0.01) {
-    for (const [k, v] of rateLimitMap) {
-      if (now > v.resetTime) rateLimitMap.delete(k);
-    }
-  }
-
   const response = NextResponse.next();
   response.headers.set('X-RateLimit-Limit', String(MAX_REQUESTS));
   response.headers.set('X-RateLimit-Remaining', String(Math.max(0, MAX_REQUESTS - current.count)));
@@ -53,3 +75,17 @@ export function middleware(request: NextRequest) {
 export const config = {
   matcher: '/api/:path*',
 };
+
+export function __resetRateLimitForTests() {
+  rateLimitMap.clear();
+  lastCleanupTime = 0;
+  cleanupIntervalMs = 60_000;
+}
+
+export function __getRateLimitSizeForTests(): number {
+  return rateLimitMap.size;
+}
+
+export function __setRateLimitCleanupIntervalForTests(intervalMs: number) {
+  cleanupIntervalMs = intervalMs;
+}
