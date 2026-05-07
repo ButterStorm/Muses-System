@@ -5,7 +5,11 @@ import { Handle, Position, NodeProps, useReactFlow, NodeResizer } from '@xyflow/
 
 const TextInputNode = ({ id, data, selected }: NodeProps) => {
     const { setNodes } = useReactFlow();
-    const [text, setText] = useState(data.text as string || '画面：金属银猫猫的身体，覆盖银蓝电光形态（全身发电纹）特效：电光外溢、能量爆发');
+    const [text, setText] = useState(
+        typeof data.text === 'string'
+            ? data.text
+            : '画面：金属银猫猫的身体，覆盖银蓝电光形态（全身发电纹）特效：电光外溢、能量爆发'
+    );
 
     useEffect(() => {
         setNodes((nodes) =>

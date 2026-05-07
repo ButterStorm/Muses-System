@@ -58,14 +58,14 @@ const initialNodes: Node[] = [
   {
     id: 'input-text',
     type: 'textInputNode',
-    position: { x: 50, y: 300 },
-    style: { width: 288, height: 120 },
+    position: { x: 220, y: 260 },
+    style: { width: 240, height: 96 },
     data: { label: '文本输入', text: '你好！请帮我写一段关于极简主义家居设计的描述。' },
   },
   {
     id: 'gen-1',
     type: 'unifiedNode',
-    position: { x: 450, y: 300 },
+    position: { x: 560, y: 240 },
     data: {
       label: '文生文',
       type: 'text',
@@ -263,7 +263,7 @@ const FlowInner: React.FC<FlowCanvasProps> = ({ projectId }) => {
     [setEdges]
   );
 
-  const addNode = (type: string, label: string) => {
+  const addNode = (type: string, label: string, initialData: Record<string, unknown> = {}) => {
     // Calculate canvas center of current viewport
     const { x: vx, y: vy, zoom } = getViewport();
     const container = document.querySelector('.react-flow') as HTMLElement;
@@ -278,20 +278,20 @@ const FlowInner: React.FC<FlowCanvasProps> = ({ projectId }) => {
       position: { x: cx, y: cy },
     } as Partial<Node>;
 
-    let data: any = { label, prompt: '' };
-    if (type === 'textNode') data = { label, prompt: '', output: '' };
-    if (type === 'imageNode') data = { label, prompt: '', imageUrl: '', isLoading: false };
-    if (type === 'videoNode') data = { label, prompt: '', videoUrl: '', isLoading: false };
-    if (type === 'audioNode') data = { label, prompt: '', audioUrl: '', output: '', isLoading: false };
-    if (type === 'musicNode') data = { label, prompt: '', musicUrl: '', isLoading: false };
-    if (type === 'unifiedNode') data = { label, type: 'text', prompt: '', model: getDefaultModel('text'), count: 1, duration: 5, voice: 'zh_male_sunny', output: null, isLoading: false };
-    if (type === 'textInputNode') data = { label, text: '' };
-    if (type === 'imageInputNode') data = { label, imageUrls: [], videoUrls: [], audioUrls: [], imageUrl: '', videoUrl: '', audioUrl: '' };
+    let data: any = { label, prompt: '', ...initialData };
+    if (type === 'textNode') data = { label, prompt: '', output: '', ...initialData };
+    if (type === 'imageNode') data = { label, prompt: '', imageUrl: '', isLoading: false, ...initialData };
+    if (type === 'videoNode') data = { label, prompt: '', videoUrl: '', isLoading: false, ...initialData };
+    if (type === 'audioNode') data = { label, prompt: '', audioUrl: '', output: '', isLoading: false, ...initialData };
+    if (type === 'musicNode') data = { label, prompt: '', musicUrl: '', isLoading: false, ...initialData };
+    if (type === 'unifiedNode') data = { label, type: 'text', prompt: '', model: getDefaultModel('text'), count: 1, duration: 5, voice: 'zh_male_sunny', output: null, isLoading: false, ...initialData };
+    if (type === 'textInputNode') data = { label, text: '', ...initialData };
+    if (type === 'imageInputNode') data = { label, imageUrls: [], videoUrls: [], audioUrls: [], imageUrl: '', videoUrl: '', audioUrl: '', ...initialData };
 
     const newNode: Node = {
       ...(base as Node),
       data,
-      ...(type === 'textInputNode' ? { style: { width: 288, height: 120 } } : {}),
+      ...(type === 'textInputNode' ? { style: { width: 288, height: initialData.text ? 180 : 120 } } : {}),
       ...(type === 'textNode' ? { style: { width: 288, height: 150 } } : {}),
     };
     setNodes((nds) => [...nds, newNode]);
@@ -351,6 +351,7 @@ const FlowInner: React.FC<FlowCanvasProps> = ({ projectId }) => {
               nodeTypes={nodeTypes}
               connectionMode={ConnectionMode.Loose}
               fitView
+              fitViewOptions={{ padding: 0.35, maxZoom: 0.85 }}
               className="bg-gray-50"
               proOptions={{ hideAttribution: true }}
             >
