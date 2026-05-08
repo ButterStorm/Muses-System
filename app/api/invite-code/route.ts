@@ -5,6 +5,7 @@ import { createRateLimiter } from '@/lib/rateLimit';
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const inviteCodeLimiter = createRateLimiter({ limit: 8, windowMs: 10 * 60 * 1000 });
+const INVITE_ACTIVATION_CREDITS = 1000;
 
 function getServerClient() {
   if (!supabaseUrl || !supabaseServiceKey) {
@@ -88,7 +89,23 @@ export async function POST(request: NextRequest) {
       if (updateError) {
         return NextResponse.json({ error: '激活失败，请重试' }, { status: 500 });
       }
-      return NextResponse.json({ success: true, duration_days: inviteCode.duration_days });
+
+      const { error: creditError } = await supabase.rpc('grant_user_credits', {
+        p_user_id: userId,
+        p_points: INVITE_ACTIVATION_CREDITS,
+        p_reason: `invite code activation: ${code.trim()}`,
+      });
+
+      if (creditError) {
+        console.error('[Invite Code API] Credit grant failed:', creditError);
+        return NextResponse.json({ error: '激活成功，但积分赠送失败，请联系管理员' }, { status: 500 });
+      }
+
+      return NextResponse.json({
+        success: true,
+        duration_days: inviteCode.duration_days,
+        credits_granted: INVITE_ACTIVATION_CREDITS,
+      });
     }
 
     // 已激活：验证是否属于当前用户 + 是否过期
