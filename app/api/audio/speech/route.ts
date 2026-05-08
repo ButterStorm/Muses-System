@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import axios from 'axios';
 import { uploadBuffer } from '@/lib/serverStorage';
+import { creditErrorResponse, withCreditBilling } from '@/lib/credits';
 
 const DMX_API_KEY = process.env.DMX_API_KEY;
 const DMX_BASE_URL = 'https://www.dmxapi.cn';
@@ -37,28 +38,39 @@ export async function POST(request: NextRequest) {
 
     const { text, model, voice } = validationResult.data;
 
-    // 调用 DMX API
-    const response = await axios.post(
-      `${DMX_BASE_URL}/v1/audio/speech`,
-      {
-        model,
-        input: text,
-        voice,
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${DMX_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        responseType: 'arraybuffer',
+    const billedResult = await withCreditBilling(
+      request,
+      { feature: 'audio_speech', model },
+      async () => {
+        // 调用 DMX API
+        const response = await axios.post(
+          `${DMX_BASE_URL}/v1/audio/speech`,
+          {
+            model,
+            input: text,
+            voice,
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${DMX_API_KEY}`,
+              'Content-Type': 'application/json',
+            },
+            responseType: 'arraybuffer',
+          }
+        );
+
+        const audioBuffer = response.data as ArrayBuffer;
+        const url = await uploadBuffer(audioBuffer, 'audio/mpeg', 'mp3');
+
+        return { url };
       }
     );
 
-    const audioBuffer = response.data as ArrayBuffer;
-    const url = await uploadBuffer(audioBuffer, 'audio/mpeg', 'mp3');
-
-    return NextResponse.json({ url });
+    return NextResponse.json(billedResult);
   } catch (error) {
+    const creditResponse = creditErrorResponse(error);
+    if (creditResponse) return creditResponse;
+
     console.error('[Audio Speech API] Error:', error);
 
     if (axios.isAxiosError(error)) {

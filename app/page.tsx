@@ -7,6 +7,7 @@ import { useScrollAnimation } from '@/hooks/useScrollAnimation';
 import { useAuthStore } from '@/stores/authStore';
 import ColorBends from '@/components/ColorBends';
 import Galaxy from '@/components/Galaxy';
+import { getCreditBalance } from '@/services/CreditService';
 
 const translations = {
   en: {
@@ -77,6 +78,7 @@ const UserNav: React.FC<{ className?: string }> = ({ className }) => {
   const { user, isAuthenticated, isLoading, signOut, checkAuth } = useAuthStore();
   const [isOpen, setIsOpen] = useState(false);
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
+  const [availableCredits, setAvailableCredits] = useState<number | null>(null);
 
   useEffect(() => {
     checkAuth();
@@ -94,6 +96,10 @@ const UserNav: React.FC<{ className?: string }> = ({ className }) => {
           if (data?.expires_at) setExpiresAt(data.expires_at);
         })
         .catch(() => {});
+
+      getCreditBalance()
+        .then((balance) => setAvailableCredits(balance?.available_points ?? null))
+        .catch(() => setAvailableCredits(null));
     }
   }, [isAuthenticated, user?.id]);
 
@@ -154,6 +160,12 @@ const UserNav: React.FC<{ className?: string }> = ({ className }) => {
               <span>有效期</span>
               <span className="text-gray-800 font-medium">
                 {getRemainingDays() || '未知'}
+              </span>
+            </div>
+            <div className="px-4 py-2 text-sm text-gray-500 flex items-center justify-between">
+              <span>积分</span>
+              <span className="text-gray-800 font-medium">
+                {availableCredits ?? '未知'}
               </span>
             </div>
             <div className="border-t border-gray-100 my-1" />

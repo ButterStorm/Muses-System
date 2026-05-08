@@ -3,6 +3,7 @@ import { z } from 'zod';
 import axios from 'axios';
 import sharp from 'sharp';
 import { uploadBuffer } from '@/lib/serverStorage';
+import { creditErrorResponse, withCreditBilling } from '@/lib/credits';
 
 const DMX_API_KEY = process.env.DMX_API_KEY;
 const DMX_BASE_URL = 'https://www.dmxapi.cn';
@@ -41,31 +42,46 @@ export async function POST(request: NextRequest) {
 
     const { model, prompt, size, aspectRatio, images } = validationResult.data;
 
-    let result: string | string[];
+    const billedResult = await withCreditBilling(
+      request,
+      { feature: 'image', model, size, referenceCount: images?.length || 0 },
+      async () => {
+        let result: string | string[];
 
-    if (model.startsWith('doubao-seedream')) {
-      result = await generateSeedream5(prompt, size, images);
-    } else if (model.startsWith('gemini-')) {
-      const geminiModelMap: Record<string, string> = {
-        'gemini-2.5-flash-image': 'gemini-2.5-flash-image',
-        'gemini-3-pro-image': 'gemini-3-pro-image-preview',
-      };
-      const geminiModel = geminiModelMap[model] || model;
-      result = await generateGeminiImage(geminiModel, prompt, images);
-    } else if (model === GPT_IMAGE_MODEL) {
-      result = images && images.length > 0
-        ? await editGptImage(prompt, size, images)
-        : await generateGptImage(prompt, size);
-    } else {
+        if (model.startsWith('doubao-seedream')) {
+          result = await generateSeedream5(prompt, size, images);
+        } else if (model.startsWith('gemini-')) {
+          const geminiModelMap: Record<string, string> = {
+            'gemini-2.5-flash-image': 'gemini-2.5-flash-image',
+            'gemini-3-pro-image': 'gemini-3-pro-image-preview',
+          };
+          const geminiModel = geminiModelMap[model] || model;
+          result = await generateGeminiImage(geminiModel, prompt, images);
+        } else if (model === GPT_IMAGE_MODEL) {
+          result = images && images.length > 0
+            ? await editGptImage(prompt, size, images)
+            : await generateGptImage(prompt, size);
+        } else {
+          throw new ApiRouteError('不支持的图片模型', 400);
+        }
+
+        return { urls: Array.isArray(result) ? result : [result] };
+      }
+    );
+
+    return NextResponse.json(billedResult);
+  } catch (error) {
+    const creditResponse = creditErrorResponse(error);
+    if (creditResponse) return creditResponse;
+
+    console.error('[Image API] Error:', error);
+
+    if (error instanceof ApiRouteError) {
       return NextResponse.json(
-        { error: '不支持的图片模型' },
-        { status: 400 }
+        { error: error.message },
+        { status: error.status }
       );
     }
-
-    return NextResponse.json({ urls: Array.isArray(result) ? result : [result] });
-  } catch (error) {
-    console.error('[Image API] Error:', error);
 
     if (axios.isAxiosError(error)) {
       const data = error.response?.data;
@@ -81,6 +97,13 @@ export async function POST(request: NextRequest) {
       { error: message },
       { status: 500 }
     );
+  }
+}
+
+class ApiRouteError extends Error {
+  constructor(message: string, public readonly status: number) {
+    super(message);
+    this.name = 'ApiRouteError';
   }
 }
 

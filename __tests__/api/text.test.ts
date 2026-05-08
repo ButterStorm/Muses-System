@@ -14,6 +14,16 @@ jest.mock('node:https', () => ({
   },
 }));
 
+jest.mock('@/lib/credits', () => ({
+  withCreditBilling: async (_request: unknown, _input: unknown, work: () => Promise<Record<string, unknown>>) => ({
+    ...(await work()),
+    credits_charged: 1,
+    credits_balance: 99,
+    transaction_id: 'tx-test',
+  }),
+  creditErrorResponse: () => null,
+}));
+
 // Import after env setup because the route reads env at module load time.
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { POST } = require('@/app/api/text/route') as typeof import('@/app/api/text/route');
@@ -114,7 +124,12 @@ describe('Text API Route', () => {
       const data = await res.json();
 
       expect(res.status).toBe(200);
-      expect(data).toEqual({ text: 'Write a poem' });
+      expect(data).toEqual({
+        text: 'Write a poem',
+        credits_charged: 1,
+        credits_balance: 99,
+        transaction_id: 'tx-test',
+      });
       expect(mockHttpsRequest).toHaveBeenCalled();
     });
 
@@ -128,7 +143,12 @@ describe('Text API Route', () => {
       const data = await res.json();
 
       expect(res.status).toBe(200);
-      expect(data).toEqual({ text: '同一个人' });
+      expect(data).toEqual({
+        text: '同一个人',
+        credits_charged: 1,
+        credits_balance: 99,
+        transaction_id: 'tx-test',
+      });
       expect(mockHttpsRequest).toHaveBeenCalledWith(
         expect.objectContaining({
           method: 'POST',

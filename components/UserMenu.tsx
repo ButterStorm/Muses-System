@@ -5,15 +5,28 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
 import { User, LogOut, LayoutDashboard, Loader2, KeyRound } from 'lucide-react';
+import { getCreditBalance } from '@/services/CreditService';
 
 export default function UserMenu() {
   const router = useRouter();
   const { user, isAuthenticated, isLoading, signOut, checkAuth } = useAuthStore();
   const [isOpen, setIsOpen] = useState(false);
+  const [availableCredits, setAvailableCredits] = useState<number | null>(null);
 
   useEffect(() => {
     checkAuth();
   }, [checkAuth]);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setAvailableCredits(null);
+      return;
+    }
+
+    getCreditBalance()
+      .then((balance) => setAvailableCredits(balance?.available_points ?? null))
+      .catch(() => setAvailableCredits(null));
+  }, [isAuthenticated]);
 
   const handleSignOut = async () => {
     await signOut();
@@ -65,6 +78,9 @@ export default function UserMenu() {
             <div className="px-4 py-2 border-b border-gray-100">
               <p className="text-sm font-medium text-gray-900 truncate">
                 {user?.email}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">
+                积分 {availableCredits ?? '未知'}
               </p>
             </div>
 

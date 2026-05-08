@@ -19,6 +19,16 @@ jest.mock('@/lib/serverStorage', () => ({
   uploadBuffer: (...args: unknown[]) => mockUploadBuffer(...args),
 }));
 
+jest.mock('@/lib/credits', () => ({
+  withCreditBilling: async (_request: unknown, _input: unknown, work: () => Promise<Record<string, unknown>>) => ({
+    ...(await work()),
+    credits_charged: 10,
+    credits_balance: 90,
+    transaction_id: 'tx-image',
+  }),
+  creditErrorResponse: () => null,
+}));
+
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { POST } = require('@/app/api/image/route') as typeof import('@/app/api/image/route');
 
@@ -55,7 +65,12 @@ describe('Image API Route', () => {
     const data = await res.json();
 
     expect(res.status).toBe(200);
-    expect(data).toEqual({ urls: ['https://cdn.example.com/generated.jpg'] });
+    expect(data).toEqual({
+      urls: ['https://cdn.example.com/generated.jpg'],
+      credits_charged: 10,
+      credits_balance: 90,
+      transaction_id: 'tx-image',
+    });
     expect(mockAxiosPost).toHaveBeenCalledWith(
       'https://www.dmxapi.cn/v1/images/generations',
       expect.objectContaining({
@@ -98,7 +113,12 @@ describe('Image API Route', () => {
     const data = await res.json();
 
     expect(res.status).toBe(200);
-    expect(data).toEqual({ urls: ['https://images.example.com/edited.png'] });
+    expect(data).toEqual({
+      urls: ['https://images.example.com/edited.png'],
+      credits_charged: 10,
+      credits_balance: 90,
+      transaction_id: 'tx-image',
+    });
     expect(mockAxiosGet).toHaveBeenCalledWith('https://assets.example.com/source.png', {
       responseType: 'arraybuffer',
     });

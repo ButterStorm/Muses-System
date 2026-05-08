@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import axios from 'axios';
+import { creditErrorResponse, withCreditBilling } from '@/lib/credits';
 
 const DMX_API_KEY = process.env.DMX_API_KEY;
 const DMX_BASE_URL = 'https://www.dmxapi.cn';
@@ -61,29 +62,40 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 构建请求 FormData
-    const apiFormData = new FormData();
-    apiFormData.append('file', file);
-    apiFormData.append('model', model);
-    if (language) {
-      apiFormData.append('language', language);
-    }
+    const billedResult = await withCreditBilling(
+      request,
+      { feature: 'audio_transcribe', model },
+      async () => {
+        // 构建请求 FormData
+        const apiFormData = new FormData();
+        apiFormData.append('file', file);
+        apiFormData.append('model', model);
+        if (language) {
+          apiFormData.append('language', language);
+        }
 
-    // 调用 DMX API
-    const response = await axios.post(
-      `${DMX_BASE_URL}/v1/audio/transcriptions`,
-      apiFormData,
-      {
-        headers: {
-          Authorization: `Bearer ${DMX_API_KEY}`,
-        },
+        // 调用 DMX API
+        const response = await axios.post(
+          `${DMX_BASE_URL}/v1/audio/transcriptions`,
+          apiFormData,
+          {
+            headers: {
+              Authorization: `Bearer ${DMX_API_KEY}`,
+            },
+          }
+        );
+
+        const text = response.data?.text || '';
+
+        return { text };
       }
     );
 
-    const text = response.data?.text || '';
-
-    return NextResponse.json({ text });
+    return NextResponse.json(billedResult);
   } catch (error) {
+    const creditResponse = creditErrorResponse(error);
+    if (creditResponse) return creditResponse;
+
     console.error('[Audio Transcribe API] Error:', error);
 
     if (axios.isAxiosError(error)) {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import axios from 'axios';
+import { creditErrorResponse, withCreditBilling } from '@/lib/credits';
 
 const DMX_API_KEY = process.env.DMX_API_KEY;
 const DMX_BASE_URL = 'https://www.dmxapi.cn';
@@ -50,23 +51,34 @@ export async function POST(request: NextRequest) {
     const { provider, prompt, duration, aspectRatio, imageUrl, imageUrls, videoUrls, audioUrls } = validationResult.data;
     const references = normalizeReferences({ imageUrl, imageUrls, videoUrls, audioUrls });
 
-    let videoUrl = '';
-    if (provider === 'kling') {
-      ensureDmxApiKey();
-      videoUrl = await generateKlingVideo(prompt, duration, aspectRatio, references.imageUrls[0]);
-    } else if (provider === 'doubao') {
-      ensureDmxApiKey();
-      videoUrl = await generateDoubaoVideo(prompt, duration, aspectRatio, references.imageUrls[0]);
-    } else if (provider === 'seedance-2-0') {
-      ensureDmxApiKey();
-      videoUrl = await generateSeedance20Video(prompt, duration, aspectRatio, references);
-    } else {
-      ensureDashScopeApiKey();
-      videoUrl = await generateHappyHorseVideo(prompt, duration, aspectRatio);
-    }
+    const billedResult = await withCreditBilling(
+      request,
+      { feature: 'video', model: provider, duration },
+      async () => {
+        let videoUrl = '';
+        if (provider === 'kling') {
+          ensureDmxApiKey();
+          videoUrl = await generateKlingVideo(prompt, duration, aspectRatio, references.imageUrls[0]);
+        } else if (provider === 'doubao') {
+          ensureDmxApiKey();
+          videoUrl = await generateDoubaoVideo(prompt, duration, aspectRatio, references.imageUrls[0]);
+        } else if (provider === 'seedance-2-0') {
+          ensureDmxApiKey();
+          videoUrl = await generateSeedance20Video(prompt, duration, aspectRatio, references);
+        } else {
+          ensureDashScopeApiKey();
+          videoUrl = await generateHappyHorseVideo(prompt, duration, aspectRatio);
+        }
 
-    return NextResponse.json({ url: videoUrl });
+        return { url: videoUrl };
+      }
+    );
+
+    return NextResponse.json(billedResult);
   } catch (error) {
+    const creditResponse = creditErrorResponse(error);
+    if (creditResponse) return creditResponse;
+
     console.error('[Video API] Error:', error);
 
     if (axios.isAxiosError(error)) {
