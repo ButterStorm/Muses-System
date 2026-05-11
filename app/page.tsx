@@ -79,6 +79,7 @@ const UserNav: React.FC<{ className?: string }> = ({ className }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
   const [availableCredits, setAvailableCredits] = useState<number | null>(null);
+  const [copyStatus, setCopyStatus] = useState<'idle' | 'success' | 'error'>('idle');
 
   useEffect(() => {
     checkAuth();
@@ -109,6 +110,45 @@ const UserNav: React.FC<{ className?: string }> = ({ className }) => {
     if (diff <= 0) return '已过期';
     const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
     return `${days}天`;
+  };
+
+  const copyUserId = async () => {
+    if (!user?.id) {
+      setCopyStatus('error');
+      return;
+    }
+
+    let copied = false;
+
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(user.id);
+        copied = true;
+      }
+    } catch {
+      copied = false;
+    }
+
+    if (!copied) {
+      const textArea = document.createElement('textarea');
+      textArea.value = user.id;
+      textArea.setAttribute('readonly', '');
+      textArea.style.position = 'fixed';
+      textArea.style.left = '-9999px';
+      document.body.appendChild(textArea);
+      textArea.select();
+
+      try {
+        copied = document.execCommand?.('copy') ?? false;
+      } catch {
+        copied = false;
+      } finally {
+        document.body.removeChild(textArea);
+      }
+    }
+
+    setCopyStatus(copied ? 'success' : 'error');
+    window.setTimeout(() => setCopyStatus('idle'), 1800);
   };
 
   if (isLoading) {
@@ -156,6 +196,27 @@ const UserNav: React.FC<{ className?: string }> = ({ className }) => {
             onClick={() => setIsOpen(false)}
           />
           <div className="absolute left-0 top-full mt-2 w-40 bg-white rounded-xl shadow-lg border border-gray-200 py-2 z-50">
+            <div className="px-4 py-2 text-sm text-gray-500 flex items-center justify-between">
+              <span>ID</span>
+              <div className="flex items-center gap-2">
+                {copyStatus !== 'idle' && (
+                  <span className={`text-xs ${copyStatus === 'success' ? 'text-green-600' : 'text-red-500'}`}>
+                    {copyStatus === 'success' ? '已复制' : '复制失败'}
+                  </span>
+                )}
+                <button
+                  type="button"
+                  title="复制用户ID"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    copyUserId();
+                  }}
+                  className="rounded-md px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100 hover:text-gray-950 transition-colors"
+                >
+                  复制
+                </button>
+              </div>
+            </div>
             <div className="px-4 py-2 text-sm text-gray-500 flex items-center justify-between">
               <span>有效期</span>
               <span className="text-gray-800 font-medium">
