@@ -119,6 +119,16 @@ const CanvasFloatingPanel: React.FC<CanvasFloatingPanelProps> = ({ onAddNode }) 
           <div className="flex flex-col">
             <div className="p-2 flex flex-col gap-1.5">
               <button
+                onClick={() => onAddNode('unifiedNode', '文生文')}
+                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl bg-gray-900 hover:bg-black transition-all text-white shadow-lg shadow-gray-300/40 active:scale-[0.97] group"
+              >
+                <div className="w-7 h-7 rounded-lg bg-white/15 flex items-center justify-center group-hover:rotate-90 transition-transform duration-300">
+                  <Sparkles size={13} className="text-white" />
+                </div>
+                <span className="text-xs font-bold">新生成节点</span>
+              </button>
+
+              <button
                 onClick={() => onAddNode('textInputNode', '文本输入')}
                 className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-gray-100/80 transition-all text-gray-600 hover:text-gray-900 group"
               >
@@ -136,18 +146,6 @@ const CanvasFloatingPanel: React.FC<CanvasFloatingPanelProps> = ({ onAddNode }) 
                   <ImagePlus size={13} className="text-purple-500" />
                 </div>
                 <span className="text-xs font-semibold">多模态参考</span>
-              </button>
-
-              <div className="my-0.5 border-t border-gray-100" />
-
-              <button
-                onClick={() => onAddNode('unifiedNode', '文生文')}
-                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl bg-gray-900 hover:bg-black transition-all text-white shadow-lg shadow-gray-300/40 active:scale-[0.97] group"
-              >
-                <div className="w-7 h-7 rounded-lg bg-white/15 flex items-center justify-center group-hover:rotate-90 transition-transform duration-300">
-                  <Sparkles size={13} className="text-white" />
-                </div>
-                <span className="text-xs font-bold">新生成节点</span>
               </button>
             </div>
 

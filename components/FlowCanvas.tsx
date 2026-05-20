@@ -381,7 +381,7 @@ const FlowInner: React.FC<FlowCanvasProps> = ({ projectId }) => {
             />
           </div>
         </div>
-        <AgentPanel />
+        <AgentPanel projectId={projectId || currentProject?.id} />
       </div>
     </div>
   );

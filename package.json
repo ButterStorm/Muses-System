@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "e2b:build-template": "node e2b/build-template.mjs",
+    "lint": "eslint .",
     "test": "jest",
     "test:watch": "jest --watch",
     "type-check": "tsc --noEmit"
@@ -23,6 +24,7 @@
     "@xyflow/react": "^12.9.2",
     "axios": "^1.13.2",
     "clsx": "^2.1.1",
+    "e2b": "^2.20.1",
     "gsap": "^3.13.0",
     "langchain": "^1.0.6",
     "lucide-react": "^0.511.0",

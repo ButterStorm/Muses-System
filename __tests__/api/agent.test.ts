@@ -1,9 +1,9 @@
 /** @jest-environment node */
 
 import { POST } from '@/app/api/agent/route';
-import { chat } from '@/lib/agents/muses-agent-sdk/chat';
+import { chat } from '@/lib/agents/muses-agent/chat';
 
-jest.mock('@/lib/agents/muses-agent-sdk/chat', () => ({
+jest.mock('@/lib/agents/muses-agent/chat', () => ({
   chat: jest.fn(),
 }));
 
@@ -61,9 +61,35 @@ describe('Agent API Route', () => {
     expect(res.status).toBe(200);
     expect(mockedChat).toHaveBeenCalledWith({
       message: '下一步呢？',
-      model: undefined,
+      model: 'deepseek:deepseek-v4-flash',
       history,
     });
+  });
+
+  it('should pass the requested DeepSeek agent model to the SDK', async () => {
+    mockedChat.mockResolvedValue({ response: '已切换模型。' });
+
+    const req = createRequest({ message: '你好', model: 'deepseek:deepseek-v4-pro' });
+
+    const res = await POST(req as never);
+
+    expect(res.status).toBe(200);
+    expect(mockedChat).toHaveBeenCalledWith({
+      message: '你好',
+      model: 'deepseek:deepseek-v4-pro',
+      history: undefined,
+    });
+  });
+
+  it('should reject non-whitelisted agent models', async () => {
+    const req = createRequest({ message: '你好', model: 'deepseek-v4-pro' });
+
+    const res = await POST(req as never);
+    const data = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(data.error).toBe('输入验证失败');
+    expect(mockedChat).not.toHaveBeenCalled();
   });
 
   it('should surface a stable error when the SDK throws', async () => {
@@ -89,6 +115,20 @@ describe('Agent API Route', () => {
     expect(res.status).toBe(500);
     expect(data.error).toBe('AI 服务配置异常，请联系管理员');
     expect(data.error).not.toContain('OPENAI_API_KEY');
+    expect(data.error).not.toContain('sk-test-secret');
+  });
+
+  it('should not leak DeepSeek configuration details', async () => {
+    mockedChat.mockRejectedValue(new Error('AGENT_PROVIDER_CONFIG_MISSING:deepseek sk-test-secret'));
+
+    const req = createRequest({ message: '你好' });
+
+    const res = await POST(req as never);
+    const data = await res.json();
+
+    expect(res.status).toBe(500);
+    expect(data.error).toBe('AI 服务配置异常，请联系管理员');
+    expect(data.error).not.toContain('DeepSeek_API_KEY');
     expect(data.error).not.toContain('sk-test-secret');
   });
 });

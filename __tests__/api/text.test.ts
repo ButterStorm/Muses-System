@@ -25,8 +25,11 @@ jest.mock('@/lib/credits', () => ({
 }));
 
 // Import after env setup because the route reads env at module load time.
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const { POST } = require('@/app/api/text/route') as typeof import('@/app/api/text/route');
+let POST: typeof import('@/app/api/text/route')['POST'];
+
+beforeAll(async () => {
+  ({ POST } = await import('@/app/api/text/route'));
+});
 
 function createRequest(body: Record<string, unknown>) {
   return {

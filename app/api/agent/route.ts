@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { chat } from '@/lib/agents/muses-agent-sdk/chat';
+import { chat } from '@/lib/agents/muses-agent/chat';
+import { getDefaultAgentModel, isAllowedAgentModel } from '@/lib/agents/model-router';
 
 export const runtime = 'nodejs';
 
@@ -13,13 +14,21 @@ function getSafeErrorMessage(error: unknown): string | null {
     return 'AI 服务配置异常，请联系管理员';
   }
 
+  if (
+    error.message.includes('AGENT_PROVIDER_CONFIG_MISSING') ||
+    error.message.includes('DeepSeek_API_KEY') ||
+    error.message.includes('sk-')
+  ) {
+    return 'AI 服务配置异常，请联系管理员';
+  }
+
   return null;
 }
 
 // 输入验证 schema
 const AgentChatSchema = z.object({
   message: z.string().min(1).max(4000),
-  model: z.string().optional(),
+  model: z.string().refine(isAllowedAgentModel, '不支持的 Agent 模型').optional(),
   history: z.array(z.object({
     role: z.enum(['user', 'assistant']),
     content: z.string().min(1).max(4000),
@@ -39,7 +48,7 @@ export async function POST(request: NextRequest) {
     }
 
     const { message, model, history } = validationResult.data;
-    const result = await chat({ message, model, history });
+    const result = await chat({ message, model: model || getDefaultAgentModel(), history });
 
     return NextResponse.json(result);
   } catch (error) {

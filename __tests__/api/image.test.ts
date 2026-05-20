@@ -29,8 +29,11 @@ jest.mock('@/lib/credits', () => ({
   creditErrorResponse: () => null,
 }));
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const { POST } = require('@/app/api/image/route') as typeof import('@/app/api/image/route');
+let POST: typeof import('@/app/api/image/route')['POST'];
+
+beforeAll(async () => {
+  ({ POST } = await import('@/app/api/image/route'));
+});
 
 function createRequest(body: Record<string, unknown>) {
   return {

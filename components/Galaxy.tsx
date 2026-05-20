@@ -217,12 +217,22 @@ export default function Galaxy({
 
     useEffect(() => {
         if (!ctnDom.current) return;
+        if (!canCreateWebGlContext()) return;
+
         const ctn = ctnDom.current;
-        const renderer = new Renderer({
-            alpha: transparent,
-            premultipliedAlpha: false
-        });
+        let renderer: Renderer;
+
+        try {
+            renderer = new Renderer({
+                alpha: transparent,
+                premultipliedAlpha: false
+            });
+        } catch {
+            return;
+        }
+
         const gl = renderer.gl;
+        if (!gl) return;
 
         if (transparent) {
             gl.enable(gl.BLEND);
@@ -336,4 +346,16 @@ export default function Galaxy({
     }, []);
 
     return <div ref={ctnDom} className="w-full h-full relative" {...rest} />;
+}
+
+function canCreateWebGlContext(): boolean {
+    const canvas = document.createElement('canvas');
+    const gl = (
+        canvas.getContext('webgl2') ||
+        canvas.getContext('webgl') ||
+        canvas.getContext('experimental-webgl')
+    ) as WebGLRenderingContext | WebGL2RenderingContext | null;
+
+    gl?.getExtension('WEBGL_lose_context')?.loseContext();
+    return Boolean(gl);
 }
