@@ -19,7 +19,7 @@ export type AgentStreamEvent =
 export interface AgentRuntimeSession {
   subscribe: (listener: (event: any) => void) => () => void;
   prompt: (text: string, options?: any) => Promise<void>;
-  dispose: (options?: { disposeSandbox?: boolean }) => void;
+  dispose: (options?: { disposeSandbox?: boolean }) => void | Promise<void>;
   sandboxRuntime?: AgentSandboxRuntime;
 }
 

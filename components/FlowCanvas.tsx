@@ -27,6 +27,7 @@ import ImageInputNode from './nodes/ImageInputNode';
 import Toolbar, { ViewMode } from './Toolbar';
 import CanvasFloatingPanel from './CanvasFloatingPanel';
 import AgentPanel from './AgentPanel';
+import SandboxFilesPanel from './SandboxFilesPanel';
 import Galaxy from './Galaxy';
 import ErrorBoundary from './ErrorBoundary';
 import { useProjectStore } from '@/stores/projectStore';
@@ -326,7 +327,6 @@ const FlowInner: React.FC<FlowCanvasProps> = ({ projectId }) => {
   };
 
   const [viewMode, setViewMode] = useState<ViewMode>('canvas');
-
   return (
     <div className="h-screen w-full flex flex-col bg-gray-50 overflow-hidden">
       <Toolbar onSave={handleSave} projectName={currentProject?.name} onRename={(name) => renameProject(currentProject!.id, name)} viewMode={viewMode} onViewModeChange={setViewMode} />
@@ -357,7 +357,12 @@ const FlowInner: React.FC<FlowCanvasProps> = ({ projectId }) => {
             >
               <Background color="#aaa" gap={16} />
             </ReactFlow>
-            {viewMode === 'canvas' && <CanvasFloatingPanel onAddNode={addNode} />}
+            {viewMode === 'canvas' && (
+              <>
+                <CanvasFloatingPanel onAddNode={addNode} />
+                <SandboxFilesPanel />
+              </>
+            )}
           </div>
 
           {/* 背面 - 空间 */}

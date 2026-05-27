@@ -209,6 +209,47 @@ describe('AgentPanel', () => {
     expect(screen.getByTitle('沙箱已启动，点击关闭')).toBeInTheDocument();
   });
 
+  it('does not mark sandbox active when the runtime reports sandbox disabled', async () => {
+    jest.mocked(agentService.openRuntime).mockImplementation(async (options) => {
+      options.onStatus?.({
+        label: 'E2B 沙箱未启用',
+        detail: '当前环境没有配置 E2B_API_KEY',
+        status: 'info',
+      });
+    });
+
+    render(<AgentPanel />);
+
+    fireEvent.click(screen.getByTitle('Open Agent'));
+    fireEvent.click(screen.getByTitle('沙箱未启动，点击开启'));
+    fireEvent.click(screen.getByText('确认开启'));
+
+    await waitFor(() => {
+      expect(screen.getByText('沙箱没有真正启动，请检查 E2B 配置或启动日志')).toBeInTheDocument();
+    });
+    expect(screen.getByTitle('沙箱未启动，点击开启')).toBeInTheDocument();
+  });
+
+  it('recognizes sandbox opening status labels as active', async () => {
+    jest.mocked(agentService.openRuntime).mockImplementation(async (options) => {
+      options.onStatus?.({
+        label: 'E2B 沙箱已开启',
+        detail: 'sbx_123 · /home/user/musesAOS',
+        status: 'done',
+      });
+    });
+
+    render(<AgentPanel />);
+
+    fireEvent.click(screen.getByTitle('Open Agent'));
+    fireEvent.click(screen.getByTitle('沙箱未启动，点击开启'));
+    fireEvent.click(screen.getByText('确认开启'));
+
+    await waitFor(() => {
+      expect(screen.getByTitle('沙箱已启动，点击关闭')).toBeInTheDocument();
+    });
+  });
+
   it('keeps a loading dialog while opening the sandbox from the power button', async () => {
     jest.mocked(agentService.openRuntime).mockImplementation(() => new Promise(() => undefined));
 
@@ -221,11 +262,11 @@ describe('AgentPanel', () => {
     await waitFor(() => {
       expect(screen.getByText('正在开启沙箱...')).toBeInTheDocument();
     });
-    expect(screen.getByText('正在创建 E2B 运行环境并复制内置 Skills 文件夹，请稍等。')).toBeInTheDocument();
+    expect(screen.getByText('正在创建 E2B 运行环境并配置 Skills，请稍等。')).toBeInTheDocument();
     expect(screen.queryByText('确认开启沙箱')).not.toBeInTheDocument();
   });
 
-  it('lights the sandbox power button as soon as E2B startup begins', async () => {
+  it('keeps the sandbox power button inactive until E2B is ready', async () => {
     jest.mocked(agentService.streamMessage).mockImplementation(async (_message, options) => {
       options.onStatus?.({
         label: '启动 E2B 沙箱',
@@ -245,8 +286,9 @@ describe('AgentPanel', () => {
     fireEvent.click(screen.getByTitle('发送'));
 
     await waitFor(() => {
-      expect(screen.getByTitle('沙箱已启动，点击关闭')).toBeInTheDocument();
+      expect(screen.getByTitle('终止运行')).toBeInTheDocument();
     });
+    expect(screen.getByTitle('沙箱未启动，点击开启')).toBeInTheDocument();
   });
 
   it('turns the send button into a stop button for the current agent run only', async () => {

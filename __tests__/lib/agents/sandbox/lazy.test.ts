@@ -10,6 +10,8 @@ function sandboxRuntime(id = 'sbx_123'): AgentSandboxRuntime {
     writeFile: jest.fn(),
     mkdir: jest.fn(),
     access: jest.fn(),
+    listDir: jest.fn(),
+    stat: jest.fn(),
     isStarted: () => true,
     dispose: jest.fn(),
   };

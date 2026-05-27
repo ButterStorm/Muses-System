@@ -127,6 +127,27 @@ describe('Agent stream API route', () => {
     expect(mockedDisposeAgentRuntime).toHaveBeenCalledWith('user:user_123');
   });
 
+  it('waits for runtime disposal before returning from delete', async () => {
+    let resolveDispose: () => void = () => undefined;
+    mockedDisposeAgentRuntime.mockImplementationOnce(() => new Promise<void>((resolve) => {
+      resolveDispose = resolve;
+    }));
+
+    const responsePromise = DELETE(createRequest({ runtimeId: 'local:1' }) as never);
+    let settled = false;
+    responsePromise.then(() => {
+      settled = true;
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(settled).toBe(false);
+
+    resolveDispose();
+    const response = await responsePromise;
+
+    expect(response.status).toBe(200);
+  });
+
   it('rejects delete requests without a runtime id', async () => {
     const response = await DELETE(createRequest({ runtimeId: '' }) as never);
 

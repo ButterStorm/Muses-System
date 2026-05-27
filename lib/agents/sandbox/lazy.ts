@@ -84,6 +84,8 @@ export function createLazySandboxRuntime({
     writeFile: async (absolutePath, content) => (await getRuntime()).writeFile(absolutePath, content),
     mkdir: async (dir) => (await getRuntime()).mkdir(dir),
     access: async (absolutePath) => (await getRuntime()).access(absolutePath),
+    listDir: async (absolutePath) => (await getRuntime()).listDir(absolutePath),
+    stat: async (absolutePath) => (await getRuntime()).stat(absolutePath),
     isStarted: () => Boolean(runtime),
     dispose: async () => {
       if (!runtimePromise) return;

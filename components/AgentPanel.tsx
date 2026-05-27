@@ -213,17 +213,24 @@ const AgentPanel: React.FC<AgentPanelProps> = ({ projectId }) => {
       setIsOpeningRuntime(true);
       setSandboxPowerError('');
       ensureRuntimeId(runtimeIdRef);
+      let didStartSandbox = false;
       await agentService.openRuntime({
         runtimeId: runtimeIdRef.current,
         model: 'deepseek:deepseek-v4-flash',
         onStatus: (status) => {
           if (isSandboxStartedStatus(status.label)) {
+            didStartSandbox = true;
             setIsSandboxActive(true);
           }
         },
       });
-      setIsSandboxActive(true);
-      setSandboxConfirmAction(null);
+      if (didStartSandbox) {
+        setIsSandboxActive(true);
+        setSandboxConfirmAction(null);
+      } else {
+        setIsSandboxActive(false);
+        setSandboxPowerError('沙箱没有真正启动，请检查 E2B 配置或启动日志');
+      }
     } catch (error) {
       const message = error instanceof Error && error.message ? error.message : '开启沙盒失败';
       setSandboxPowerError(message);
@@ -606,9 +613,9 @@ function SandboxPowerConfirmDialog({
             </h2>
             <p className="mt-1 text-xs leading-5 text-gray-500">
               {busy && isOpenAction
-                ? '正在创建 E2B 运行环境并复制内置 Skills 文件夹，请稍等。'
+                ? '正在创建 E2B 运行环境并配置 Skills，请稍等。'
                 : isOpenAction
-                ? '开启后会创建 E2B 运行环境，并复制内置 Skills 文件夹。'
+                ? '开启后会创建 E2B 运行环境，并配置 Skills。'
                 : '关闭会直接 kill 当前用户的 E2B 沙箱。左下角刷新只重置会话，不删除沙箱文件。'}
             </p>
             {error && (
@@ -667,10 +674,10 @@ function MarkdownMessage({ content, role }: { content: string; role: 'user' | 'a
           h1: ({ children }) => <h1 className={`mb-2 text-base font-semibold ${strongClass}`}>{children}</h1>,
           h2: ({ children }) => <h2 className={`mb-1.5 mt-2 text-sm font-semibold ${strongClass}`}>{children}</h2>,
           h3: ({ children }) => <h3 className={`mb-1 mt-2 text-sm font-semibold ${strongClass}`}>{children}</h3>,
-          p: ({ children }) => <p className={`mb-2 last:mb-0 ${textClass}`}>{children}</p>,
-          ul: ({ children }) => <ul className={`mb-2 list-disc space-y-1 pl-4 last:mb-0 ${textClass}`}>{children}</ul>,
-          ol: ({ children }) => <ol className={`mb-2 list-decimal space-y-1 pl-4 last:mb-0 ${textClass}`}>{children}</ol>,
-          li: ({ children }) => <li className="pl-0.5">{children}</li>,
+          p: ({ children }) => <p className={`mb-3 whitespace-pre-wrap leading-7 last:mb-0 ${textClass}`}>{children}</p>,
+          ul: ({ children }) => <ul className={`mb-3 list-disc space-y-1.5 pl-5 last:mb-0 ${textClass}`}>{children}</ul>,
+          ol: ({ children }) => <ol className={`mb-3 list-decimal space-y-1.5 pl-5 last:mb-0 ${textClass}`}>{children}</ol>,
+          li: ({ children }) => <li className="leading-6">{children}</li>,
           blockquote: ({ children }) => (
             <blockquote className={`mb-2 border-l-2 pl-3 italic ${isUser ? 'border-white/40' : 'border-indigo-300'} ${mutedTextClass}`}>
               {children}
@@ -830,7 +837,7 @@ function createWelcomeMessage(): Message {
   return {
     id: 'welcome',
     role: 'assistant',
-    content: '你好！我是 Muses AI 助手。我可以帮你：\n\n• 解答使用问题\n• 提供创作灵感\n• 协助优化提示词\n\n有什么可以帮你的吗？',
+    content: '你好！我是 Muses AI 助手。我可以帮你：\n\n- 解答使用问题\n- 提供创作灵感\n- 协助优化提示词\n\n有什么可以帮你的吗？',
     timestamp: new Date(),
   };
 }
@@ -963,7 +970,8 @@ function truncateForTrace(value: string): string {
 }
 
 function isSandboxStartedStatus(label: string): boolean {
-  return label.includes('E2B') &&
-    label.includes('沙箱') &&
-    (label.includes('启动') || label.includes('就绪'));
+  if (!label.includes('E2B') || !label.includes('沙箱') || label.includes('未启用')) {
+    return false;
+  }
+  return label.includes('已开启') || label.includes('已就绪') || label.includes('创建完成');
 }

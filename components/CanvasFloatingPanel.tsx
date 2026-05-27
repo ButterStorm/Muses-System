@@ -147,6 +147,7 @@ const CanvasFloatingPanel: React.FC<CanvasFloatingPanelProps> = ({ onAddNode }) 
                 </div>
                 <span className="text-xs font-semibold">多模态参考</span>
               </button>
+
             </div>
 
             <div className="border-t border-gray-100">

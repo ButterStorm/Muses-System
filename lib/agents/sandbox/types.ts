@@ -26,6 +26,16 @@ export interface AgentSandboxRuntime {
   writeFile: (absolutePath: string, content: string) => Promise<void>;
   mkdir: (dir: string) => Promise<void>;
   access: (absolutePath: string) => Promise<void>;
+  listDir: (absolutePath: string) => Promise<SandboxFileEntry[]>;
+  stat: (absolutePath: string) => Promise<SandboxFileEntry>;
   isStarted?: () => boolean;
   dispose: () => Promise<void>;
+}
+
+export interface SandboxFileEntry {
+  name: string;
+  path: string;
+  type: 'file' | 'directory';
+  size: number;
+  mimeType?: string;
 }

@@ -131,7 +131,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     const runtimeId = await getUserRuntimeId(request);
-    disposeAgentRuntime(runtimeId);
+    await disposeAgentRuntime(runtimeId);
     return NextResponse.json({ ok: true });
   } catch (error) {
     return NextResponse.json({ error: getSafeErrorMessage(error) }, { status: getSafeErrorStatus(error) });

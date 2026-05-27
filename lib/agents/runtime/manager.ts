@@ -28,7 +28,7 @@ export async function getOrCreateAgentRuntime({
   }
 
   if (current) {
-    current.session.dispose();
+    await current.session.dispose();
     runtimes.delete(runtimeId);
   }
 
@@ -70,6 +70,28 @@ export function hasMatchingAgentRuntime(runtimeId: AgentRuntimeId, model: string
   return Boolean(entry && entry.model === model);
 }
 
+export function getAgentRuntime(runtimeId: AgentRuntimeId): AgentRuntimeEntry | undefined {
+  const entry = runtimes.get(runtimeId);
+  if (entry) {
+    entry.lastActiveAt = Date.now();
+  }
+  return entry;
+}
+
+export async function getRequiredSandboxRuntime(runtimeId: AgentRuntimeId): Promise<AgentSandboxRuntime> {
+  const entry = getAgentRuntime(runtimeId);
+  if (!entry) {
+    throw new Error(`AGENT_RUNTIME_NOT_FOUND:${runtimeId}`);
+  }
+
+  const sandboxRuntime = entry.session.sandboxRuntime;
+  if (!sandboxRuntime || (sandboxRuntime.isStarted && !sandboxRuntime.isStarted())) {
+    throw new Error(`AGENT_SANDBOX_NOT_STARTED:${runtimeId}`);
+  }
+
+  return sandboxRuntime;
+}
+
 export async function resetAgentRuntimeContext({
   runtimeId,
   model,
@@ -88,7 +110,7 @@ export async function resetAgentRuntimeContext({
   }
 
   const sandboxRuntime = current.session.sandboxRuntime;
-  current.session.dispose({ disposeSandbox: false });
+  await current.session.dispose({ disposeSandbox: false });
   const session = await createSession(model, sandboxRuntime);
   runtimes.set(runtimeId, {
     runtimeId,
@@ -101,11 +123,14 @@ export async function resetAgentRuntimeContext({
   return true;
 }
 
-export function disposeAgentRuntime(runtimeId: AgentRuntimeId): void {
+export async function disposeAgentRuntime(runtimeId: AgentRuntimeId): Promise<void> {
   const entry = runtimes.get(runtimeId);
   if (!entry) return;
-  entry.session.dispose();
-  runtimes.delete(runtimeId);
+  try {
+    await entry.session.dispose();
+  } finally {
+    runtimes.delete(runtimeId);
+  }
 }
 
 export function cleanupAgentRuntimes({

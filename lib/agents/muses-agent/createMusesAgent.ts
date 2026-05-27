@@ -179,10 +179,10 @@ export async function createMusesAgent({ model, onStatus, sandboxRuntime: existi
   if (sandboxRuntime) {
     runtimeSession.sandboxRuntime = sandboxRuntime;
     const disposeSession = runtimeSession.dispose.bind(runtimeSession);
-    runtimeSession.dispose = (options) => {
-      disposeSession();
+    runtimeSession.dispose = async (options) => {
+      await Promise.resolve(disposeSession());
       if (ownsSandboxRuntime && options?.disposeSandbox !== false) {
-        sandboxRuntime.dispose().catch(() => undefined);
+        await sandboxRuntime.dispose();
       }
     };
   }

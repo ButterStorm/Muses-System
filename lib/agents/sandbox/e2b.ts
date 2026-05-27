@@ -2,6 +2,7 @@ import { readdir, readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { Sandbox } from 'e2b';
 import type { AgentSandboxRuntime } from './types';
+import { sortSandboxEntries, toSandboxFileEntry } from './files';
 
 const DEFAULT_TEMPLATE = 'muses-node22';
 export const DEFAULT_SANDBOX_CWD = '/home/user/musesAOS';
@@ -189,6 +190,15 @@ class E2BSandboxRuntime implements AgentSandboxRuntime {
     if (!exists) {
       throw new Error(`ENOENT: no such file or directory, access '${absolutePath}'`);
     }
+  }
+
+  async listDir(absolutePath: string) {
+    const entries = await this.sandbox.files.list(absolutePath, { depth: 1 });
+    return sortSandboxEntries(entries.map(toSandboxFileEntry));
+  }
+
+  async stat(absolutePath: string) {
+    return toSandboxFileEntry(await this.sandbox.files.getInfo(absolutePath));
   }
 
   isStarted(): boolean {

@@ -2,6 +2,8 @@ import {
   acquireRuntimeLock,
   cleanupAgentRuntimes,
   disposeAgentRuntime,
+  getAgentRuntime,
+  getRequiredSandboxRuntime,
   getOrCreateAgentRuntime,
   resetAgentRuntimesForTests,
 } from '@/lib/agents/runtime/manager';
@@ -129,8 +131,82 @@ describe('agent runtime manager', () => {
       createSession,
     });
 
-    disposeAgentRuntime('project:1');
+    await disposeAgentRuntime('project:1');
 
     expect(currentSession.dispose).toHaveBeenCalled();
+  });
+
+  it('waits for async runtime disposal before resolving', async () => {
+    let didDispose = false;
+    const currentSession = {
+      ...session('first'),
+      dispose: jest.fn(async () => {
+        await Promise.resolve();
+        didDispose = true;
+      }),
+    };
+    createSession.mockResolvedValue(currentSession);
+    await getOrCreateAgentRuntime({
+      runtimeId: 'project:1',
+      model: 'deepseek:deepseek-v4-flash',
+      createSession,
+    });
+
+    const disposePromise = disposeAgentRuntime('project:1');
+    expect(didDispose).toBe(false);
+    await disposePromise;
+
+    expect(didDispose).toBe(true);
+  });
+
+  it('returns an existing runtime without creating a new session', async () => {
+    const currentSession = session('first');
+    createSession.mockResolvedValue(currentSession);
+    await getOrCreateAgentRuntime({
+      runtimeId: 'project:1',
+      model: 'deepseek:deepseek-v4-flash',
+      createSession,
+    });
+
+    const runtime = getAgentRuntime('project:1');
+
+    expect(runtime?.session).toBe(currentSession);
+    expect(createSession).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns the sandbox runtime when one is attached to the session', async () => {
+    const sandboxRuntime = {
+      id: 'sandbox-1',
+      cwd: '/home/user/musesAOS',
+      exec: jest.fn(),
+      readFile: jest.fn(),
+      writeFile: jest.fn(),
+      mkdir: jest.fn(),
+      access: jest.fn(),
+      listDir: jest.fn(),
+      stat: jest.fn(),
+      dispose: jest.fn(),
+    };
+    createSession.mockResolvedValue({ ...session('first'), sandboxRuntime });
+    await getOrCreateAgentRuntime({
+      runtimeId: 'project:1',
+      model: 'deepseek:deepseek-v4-flash',
+      createSession,
+    });
+
+    await expect(getRequiredSandboxRuntime('project:1')).resolves.toBe(sandboxRuntime);
+  });
+
+  it('rejects sandbox lookup when the runtime is missing or has no sandbox', async () => {
+    await expect(getRequiredSandboxRuntime('missing')).rejects.toThrow('AGENT_RUNTIME_NOT_FOUND');
+
+    createSession.mockResolvedValue(session('first'));
+    await getOrCreateAgentRuntime({
+      runtimeId: 'project:1',
+      model: 'deepseek:deepseek-v4-flash',
+      createSession,
+    });
+
+    await expect(getRequiredSandboxRuntime('project:1')).rejects.toThrow('AGENT_SANDBOX_NOT_STARTED');
   });
 });

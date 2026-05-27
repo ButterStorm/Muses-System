@@ -19,6 +19,8 @@ describe('sandboxed agent tools', () => {
       writeFile: jest.fn(),
       mkdir: jest.fn(),
       access: jest.fn(),
+      listDir: jest.fn(),
+      stat: jest.fn(),
       dispose: jest.fn(),
     };
 
@@ -48,6 +50,14 @@ describe('sandboxed agent tools', () => {
 
       async access() {
         this.dispose();
+      }
+
+      async listDir() {
+        return [];
+      }
+
+      async stat() {
+        return { name: 'a.txt', path: '/workspace/a.txt', type: 'file' as const, size: 0 };
       }
     }
 

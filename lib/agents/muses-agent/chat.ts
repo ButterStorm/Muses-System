@@ -64,7 +64,7 @@ export async function chat({
     await session.prompt(buildPrompt(message, history));
   } finally {
     unsubscribe();
-    session.dispose();
+    await session.dispose();
   }
 
   const trimmedResponse = response.trim();
