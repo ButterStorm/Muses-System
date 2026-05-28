@@ -5,7 +5,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "MusesSystem",
-  description: "AI 创作平台：用激情与目标设计未来，释放你的创造潜能",
+  description: "MusesAOS AI Agent 创作平台：在可视化画布上编排多模型生成、沙箱执行和项目工作流",
   icons: {
     icon: "/bs_logo.jpeg",
   },

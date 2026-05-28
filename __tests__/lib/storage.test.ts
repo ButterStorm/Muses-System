@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 
-import { uploadFile } from '@/lib/storage';
+import { uploadFile, uploadImage } from '@/lib/storage';
 
 describe('browser storage upload helpers', () => {
   beforeEach(() => {
@@ -22,5 +22,84 @@ describe('browser storage upload helpers', () => {
       method: 'POST',
       body: expect.any(FormData),
     });
+  });
+
+  it('revokes object urls after image compression succeeds', async () => {
+    const originalCreateObjectURL = URL.createObjectURL;
+    const originalRevokeObjectURL = URL.revokeObjectURL;
+    Object.defineProperty(URL, 'createObjectURL', {
+      configurable: true,
+      value: jest.fn(() => 'blob:image-source'),
+    });
+    Object.defineProperty(URL, 'revokeObjectURL', {
+      configurable: true,
+      value: jest.fn(),
+    });
+    const createObjectURL = jest.mocked(URL.createObjectURL);
+    const revokeObjectURL = jest.mocked(URL.revokeObjectURL);
+    const originalImage = global.Image;
+    const originalGetContext = HTMLCanvasElement.prototype.getContext;
+    const originalToBlob = HTMLCanvasElement.prototype.toBlob;
+    Object.defineProperty(HTMLCanvasElement.prototype, 'getContext', {
+      configurable: true,
+      value: jest.fn(() => ({ drawImage: jest.fn() })),
+    });
+    Object.defineProperty(HTMLCanvasElement.prototype, 'toBlob', {
+      configurable: true,
+      value: jest.fn((callback: BlobCallback) => {
+        callback(new Blob(['compressed'], { type: 'image/jpeg' }));
+      }),
+    });
+
+    class MockImage {
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      width = 100;
+      height = 100;
+
+      set src(_value: string) {
+        setTimeout(() => this.onload?.(), 0);
+      }
+    }
+    global.Image = MockImage as unknown as typeof Image;
+
+    try {
+      const file = new File(['image'], 'demo.png', { type: 'image/png' });
+
+      await uploadImage(file);
+
+      expect(createObjectURL).toHaveBeenCalledWith(file);
+      expect(revokeObjectURL).toHaveBeenCalledWith('blob:image-source');
+      expect(fetch).toHaveBeenCalledWith('/api/upload', expect.objectContaining({
+        method: 'POST',
+        body: expect.any(FormData),
+      }));
+    } finally {
+      global.Image = originalImage;
+      if (originalCreateObjectURL) {
+        Object.defineProperty(URL, 'createObjectURL', {
+          configurable: true,
+          value: originalCreateObjectURL,
+        });
+      } else {
+        delete (URL as unknown as { createObjectURL?: unknown }).createObjectURL;
+      }
+      if (originalRevokeObjectURL) {
+        Object.defineProperty(URL, 'revokeObjectURL', {
+          configurable: true,
+          value: originalRevokeObjectURL,
+        });
+      } else {
+        delete (URL as unknown as { revokeObjectURL?: unknown }).revokeObjectURL;
+      }
+      Object.defineProperty(HTMLCanvasElement.prototype, 'getContext', {
+        configurable: true,
+        value: originalGetContext,
+      });
+      Object.defineProperty(HTMLCanvasElement.prototype, 'toBlob', {
+        configurable: true,
+        value: originalToBlob,
+      });
+    }
   });
 });

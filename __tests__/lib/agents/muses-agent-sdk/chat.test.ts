@@ -9,9 +9,9 @@ jest.mock('@/lib/agents/muses-agent/createMusesAgent', () => ({
 const mockedCreateMusesAgent = jest.mocked(createMusesAgent);
 
 describe('muses-agent-sdk chat', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     mockedCreateMusesAgent.mockReset();
-    resetAgentRuntimesForTests();
+    await resetAgentRuntimesForTests();
   });
 
   it('should return the final assistant text content', async () => {

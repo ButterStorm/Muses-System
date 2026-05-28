@@ -20,8 +20,8 @@ function session(id: string) {
 }
 
 describe('agent runtime manager', () => {
-  beforeEach(() => {
-    resetAgentRuntimesForTests();
+  beforeEach(async () => {
+    await resetAgentRuntimesForTests();
     createSession.mockReset();
   });
 
@@ -95,7 +95,7 @@ describe('agent runtime manager', () => {
       now: 1_000,
     });
 
-    cleanupAgentRuntimes({ now: 1_000 + 31 * 60_000, ttlMs: 30 * 60_000 });
+    await cleanupAgentRuntimes({ now: 1_000 + 31 * 60_000, ttlMs: 30 * 60_000 });
 
     expect(oldSession.dispose).toHaveBeenCalled();
     createSession.mockResolvedValue(session('new'));
@@ -105,6 +105,31 @@ describe('agent runtime manager', () => {
       createSession,
     });
     expect(createSession).toHaveBeenCalledTimes(2);
+  });
+
+  it('waits for async runtime disposal during cleanup before removing the runtime', async () => {
+    let didDispose = false;
+    const oldSession = {
+      ...session('old'),
+      dispose: jest.fn(async () => {
+        await Promise.resolve();
+        didDispose = true;
+      }),
+    };
+    createSession.mockResolvedValue(oldSession);
+    await getOrCreateAgentRuntime({
+      runtimeId: 'project:async-cleanup',
+      model: 'deepseek:deepseek-v4-flash',
+      createSession,
+      now: 1_000,
+    });
+
+    const cleanupPromise = cleanupAgentRuntimes({ now: 1_000 + 31 * 60_000, ttlMs: 30 * 60_000 });
+    expect(didDispose).toBe(false);
+    await cleanupPromise;
+
+    expect(didDispose).toBe(true);
+    expect(getAgentRuntime('project:async-cleanup')).toBeUndefined();
   });
 
   it('prevents concurrent streaming for the same runtime', async () => {

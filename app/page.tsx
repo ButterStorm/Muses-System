@@ -13,13 +13,13 @@ const translations = {
   en: {
     nav: { home: 'Home', canvas: 'Canvas', works: 'Works', timeline: 'Timeline', login: 'LOGIN' },
     hero: {
-      badge: 'Available for Work',
-      title: 'Design Your Future with Passion & Purpose',
-      desc: 'Unlock your creative potential with intelligent content and design solutions tailored for clarity, impact, and high-efficiency reach. From personal branding to AI-driven visuals, I help transform your ideas into valuable and influential content.'
+      badge: 'AI Agent Creation Platform',
+      title: 'Build AI Dream on a Visual Canvas',
+      desc: 'Create text, images, video, audio, music, and agent tasks in one flow-based workspace. MusesAOS connects multiple models, sandbox execution, and project history so teams can turn ideas into production-ready assets faster.'
     },
     featured: {
-      title: 'Featured Projects',
-      desc: 'A curated selection of AI-driven creative projects—where algorithms, aesthetics, and experience design converge.'
+      title: 'Core Creation Workflows',
+      desc: 'A unified workspace for multimodal generation, visual orchestration, and agent-assisted production.'
     },
     project1: {
       title: 'Script Generation',
@@ -35,22 +35,22 @@ const translations = {
     },
     common: { learnMore: 'Learn More' },
     cta: {
-      kicker: 'Final Act',
-      title: 'Ready to Elevate Your AI Creation Experience?',
-      desc: 'Take the first step toward clean, conversion-driven design that delights users and drives growth.',
-      btn: 'START NOW'
+      kicker: 'Workspace Ready',
+      title: 'Start Building with MusesAOS',
+      desc: 'Open the canvas, connect generators, and let agents help execute complex creative workflows.',
+      btn: 'OPEN CANVAS'
     }
   },
   zh: {
     nav: { home: '首页', canvas: '画布', works: '作品', timeline: '时间线', login: '登录' },
     hero: {
-      badge: '接受项目预订',
-      title: '用激情与目标设计未来',
-      desc: '通过为您量身定制的智能内容和设计解决方案，释放您的创造潜力，实现清晰、震撼和高效的触达。从个人品牌到AI驱动的视觉效果，我帮助将您的想法转化为有价值且具影响力的内容。'
+      badge: 'AI Agent 创作平台',
+      title: '在可视化画布上构建 AI 工作流',
+      desc: '把文本、图像、视频、音频、音乐和 Agent 任务放进同一个流程画布。MusesAOS 连接多模型生成、沙箱执行和项目历史，帮助团队更快把想法变成可交付内容。'
     },
     featured: {
-      title: '精选项目',
-      desc: 'AI驱动的创意项目精选——算法、美学与体验设计的融合。'
+      title: '核心创作工作流',
+      desc: '面向多模态生成、可视化编排和 Agent 辅助制作的一体化工作区。'
     },
     project1: {
       title: '长短剧本生成',
@@ -66,10 +66,10 @@ const translations = {
     },
     common: { learnMore: '了解更多' },
     cta: {
-      kicker: '终章',
-      title: '准备好提升您的AI创作体验了吗？',
-      desc: '迈出第一步，体验简洁、以转化为导向的设计，取悦用户并推动增长。',
-      btn: '立即开始'
+      kicker: '工作区就绪',
+      title: '开始使用 MusesAOS 构建',
+      desc: '打开画布，连接生成节点，让 Agent 协助执行复杂的创作流程。',
+      btn: '打开画布'
     }
   }
 };
@@ -87,11 +87,12 @@ const UserNav: React.FC<{ className?: string }> = ({ className }) => {
 
   useEffect(() => {
     if (isAuthenticated && user?.id) {
-      fetch('/api/invite-code', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: '', userId: user.id, action: 'check' }),
-      })
+      getInviteAuthHeaders()
+        .then((authHeaders) => fetch('/api/invite-code', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...authHeaders },
+          body: JSON.stringify({ code: '', userId: user.id, action: 'check' }),
+        }))
         .then(res => res.ok ? res.json() : null)
         .then(data => {
           if (data?.expires_at) setExpiresAt(data.expires_at);
@@ -245,6 +246,13 @@ const UserNav: React.FC<{ className?: string }> = ({ className }) => {
     </div>
   );
 };
+
+async function getInviteAuthHeaders(): Promise<Record<string, string>> {
+  const { supabase } = await import('@/lib/supabase');
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
 
 const LandingPage: React.FC = () => {
   const [lang, setLang] = useState<'en' | 'zh'>('en');

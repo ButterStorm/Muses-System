@@ -100,6 +100,7 @@ const FlowInner: React.FC<FlowCanvasProps> = ({ projectId }) => {
   const { user } = useAuthStore();
   const loadedRef = useRef<string | null>(null);
   const clipboardRef = useRef<Node[]>([]);
+  const saveLockRef = useRef(false);
 
   // 撤销/重做状态
   const [history, setHistory] = useState<HistoryEntry[]>([]);
@@ -299,31 +300,37 @@ const FlowInner: React.FC<FlowCanvasProps> = ({ projectId }) => {
   };
 
   const handleSave = async () => {
-    if (!user) return;
+    if (!user || saveLockRef.current) return;
 
-    if (!currentProject) {
-      await createProject(user.id);
+    saveLockRef.current = true;
+    try {
+      const latestProject = useProjectStore.getState().currentProject;
+      if (!latestProject) {
+        await createProject(user.id);
+      }
+
+      const flowData = {
+        nodes: nodes.map((node) => ({
+          id: node.id,
+          type: node.type,
+          position: node.position,
+          style: {
+            ...node.style,
+            ...(node.width ? { width: node.width } : {}),
+            ...(node.height ? { height: node.height } : {}),
+          },
+          data: node.data,
+        })),
+        edges: edges.map(({ id, source, target, sourceHandle, targetHandle, type, animated, style }) => ({
+          id, source, target, sourceHandle, targetHandle, type, animated, style,
+        })),
+        viewport: { x: 0, y: 0, zoom: 1 },
+      };
+
+      await saveProject(flowData);
+    } finally {
+      saveLockRef.current = false;
     }
-
-    const flowData = {
-      nodes: nodes.map((node) => ({
-        id: node.id,
-        type: node.type,
-        position: node.position,
-        style: {
-          ...node.style,
-          ...(node.width ? { width: node.width } : {}),
-          ...(node.height ? { height: node.height } : {}),
-        },
-        data: node.data,
-      })),
-      edges: edges.map(({ id, source, target, sourceHandle, targetHandle, type, animated, style }) => ({
-        id, source, target, sourceHandle, targetHandle, type, animated, style,
-      })),
-      viewport: { x: 0, y: 0, zoom: 1 },
-    };
-
-    await saveProject(flowData);
   };
 
   const [viewMode, setViewMode] = useState<ViewMode>('canvas');
@@ -374,16 +381,18 @@ const FlowInner: React.FC<FlowCanvasProps> = ({ projectId }) => {
               transition: 'transform 0.6s cubic-bezier(0.4, 0.0, 0.2, 1)',
             }}
           >
-            <Galaxy
-              hueShift={160}
-              density={1.2}
-              starSpeed={0.4}
-              speed={0.8}
-              glowIntensity={0.4}
-              twinkleIntensity={0.5}
-              rotationSpeed={0.05}
-              transparent={false}
-            />
+            {viewMode === 'space' && (
+              <Galaxy
+                hueShift={160}
+                density={1.2}
+                starSpeed={0.4}
+                speed={0.8}
+                glowIntensity={0.4}
+                twinkleIntensity={0.5}
+                rotationSpeed={0.05}
+                transparent={false}
+              />
+            )}
           </div>
         </div>
         <AgentPanel projectId={projectId || currentProject?.id} />

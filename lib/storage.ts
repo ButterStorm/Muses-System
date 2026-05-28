@@ -5,7 +5,9 @@ const MAX_HEIGHT = 2048;
 function compressImage(file: File): Promise<File> {
   return new Promise((resolve, reject) => {
     const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
     img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
       let { width, height } = img;
 
       // 限制最大尺寸
@@ -48,8 +50,11 @@ function compressImage(file: File): Promise<File> {
 
       tryCompress(0.8);
     };
-    img.onerror = () => reject(new Error('图片加载失败'));
-    img.src = URL.createObjectURL(file);
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error('图片加载失败'));
+    };
+    img.src = objectUrl;
   });
 }
 

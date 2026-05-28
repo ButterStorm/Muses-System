@@ -27,6 +27,16 @@ jest.mock('@/services/CreditService', () => ({
   getCreditBalance: jest.fn(),
 }));
 
+jest.mock('@/lib/supabase', () => ({
+  supabase: {
+    auth: {
+      getSession: jest.fn().mockResolvedValue({
+        data: { session: { access_token: 'test-token' } },
+      }),
+    },
+  },
+}));
+
 const mockUseAuthStore = useAuthStore as unknown as jest.Mock;
 const mockGetCreditBalance = getCreditBalance as unknown as jest.Mock;
 

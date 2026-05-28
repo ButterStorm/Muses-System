@@ -37,61 +37,13 @@ export async function POST(request: NextRequest) {
 
     const { message, model } = validationResult.data;
     const runtimeId = await getUserRuntimeId(request);
-    const encoder = new TextEncoder();
-    let controllerRef: ReadableStreamDefaultController<Uint8Array> | null = null;
-    let isStreamClosed = false;
-
-    let resolveFirst: () => void = () => undefined;
-    let rejectFirst: (error: unknown) => void = () => undefined;
-    let firstSettled = false;
-    const firstEvent = new Promise<void>((resolve, reject) => {
-      resolveFirst = resolve;
-      rejectFirst = reject;
-    });
-
-    const writeEvent = (event: AgentStreamEvent) => {
-      if (isStreamClosed) return;
-      controllerRef?.enqueue(encoder.encode(formatSseEvent(event)));
-      if (!firstSettled) {
-        firstSettled = true;
-        resolveFirst();
-      }
-    };
-
-    const readable = new ReadableStream<Uint8Array>({
-      start(controller) {
-        controllerRef = controller;
-        streamChat({
-          runtimeId,
-          message,
-          model: model || getDefaultAgentModel(),
-          onEvent: writeEvent,
-        })
-          .then(() => {
-            if (!isStreamClosed) {
-              isStreamClosed = true;
-              controller.close();
-            }
-          })
-          .catch((error) => {
-            if (!firstSettled) {
-              firstSettled = true;
-              rejectFirst(error);
-              return;
-            }
-            if (!isStreamClosed) {
-              isStreamClosed = true;
-              controller.enqueue(
-                encoder.encode(formatSseEvent({ type: 'error', error: getSafeErrorMessage(error) }))
-              );
-              controller.close();
-            }
-          });
-      },
-      cancel() {
-        isStreamClosed = true;
-        controllerRef = null;
-      },
+    const { readable, firstEvent } = createAgentSseStream((writeEvent) => {
+      return streamChat({
+        runtimeId,
+        message,
+        model: model || getDefaultAgentModel(),
+        onEvent: writeEvent,
+      });
     });
 
     try {
@@ -152,60 +104,12 @@ export async function PUT(request: NextRequest) {
 
     const { model } = validationResult.data;
     const runtimeId = await getUserRuntimeId(request);
-    const encoder = new TextEncoder();
-    let controllerRef: ReadableStreamDefaultController<Uint8Array> | null = null;
-    let isStreamClosed = false;
-
-    let resolveFirst: () => void = () => undefined;
-    let rejectFirst: (error: unknown) => void = () => undefined;
-    let firstSettled = false;
-    const firstEvent = new Promise<void>((resolve, reject) => {
-      resolveFirst = resolve;
-      rejectFirst = reject;
-    });
-
-    const writeEvent = (event: AgentStreamEvent) => {
-      if (isStreamClosed) return;
-      controllerRef?.enqueue(encoder.encode(formatSseEvent(event)));
-      if (!firstSettled) {
-        firstSettled = true;
-        resolveFirst();
-      }
-    };
-
-    const readable = new ReadableStream<Uint8Array>({
-      start(controller) {
-        controllerRef = controller;
-        startChatSandboxRuntime({
-          runtimeId,
-          model: model || getDefaultAgentModel(),
-          onEvent: writeEvent,
-        })
-          .then(() => {
-            if (!isStreamClosed) {
-              isStreamClosed = true;
-              controller.close();
-            }
-          })
-          .catch((error) => {
-            if (!firstSettled) {
-              firstSettled = true;
-              rejectFirst(error);
-              return;
-            }
-            if (!isStreamClosed) {
-              isStreamClosed = true;
-              controller.enqueue(
-                encoder.encode(formatSseEvent({ type: 'error', error: getSafeErrorMessage(error) }))
-              );
-              controller.close();
-            }
-          });
-      },
-      cancel() {
-        isStreamClosed = true;
-        controllerRef = null;
-      },
+    const { readable, firstEvent } = createAgentSseStream((writeEvent) => {
+      return startChatSandboxRuntime({
+        runtimeId,
+        model: model || getDefaultAgentModel(),
+        onEvent: writeEvent,
+      });
     });
 
     try {
@@ -262,6 +166,64 @@ export async function PATCH(request: NextRequest) {
 
 function formatSseEvent(event: AgentStreamEvent): string {
   return `event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`;
+}
+
+function createAgentSseStream(
+  run: (writeEvent: (event: AgentStreamEvent) => void) => Promise<unknown>
+): { readable: ReadableStream<Uint8Array>; firstEvent: Promise<void> } {
+  const encoder = new TextEncoder();
+  let controllerRef: ReadableStreamDefaultController<Uint8Array> | null = null;
+  let isStreamClosed = false;
+
+  let resolveFirst: () => void = () => undefined;
+  let rejectFirst: (error: unknown) => void = () => undefined;
+  let firstSettled = false;
+  const firstEvent = new Promise<void>((resolve, reject) => {
+    resolveFirst = resolve;
+    rejectFirst = reject;
+  });
+
+  const writeEvent = (event: AgentStreamEvent) => {
+    if (isStreamClosed) return;
+    controllerRef?.enqueue(encoder.encode(formatSseEvent(event)));
+    if (!firstSettled) {
+      firstSettled = true;
+      resolveFirst();
+    }
+  };
+
+  const readable = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controllerRef = controller;
+      run(writeEvent)
+        .then(() => {
+          if (!isStreamClosed) {
+            isStreamClosed = true;
+            controller.close();
+          }
+        })
+        .catch((error) => {
+          if (!firstSettled) {
+            firstSettled = true;
+            rejectFirst(error);
+            return;
+          }
+          if (!isStreamClosed) {
+            isStreamClosed = true;
+            controller.enqueue(
+              encoder.encode(formatSseEvent({ type: 'error', error: getSafeErrorMessage(error) }))
+            );
+            controller.close();
+          }
+        });
+    },
+    cancel() {
+      isStreamClosed = true;
+      controllerRef = null;
+    },
+  });
+
+  return { readable, firstEvent };
 }
 
 async function getUserRuntimeId(request: NextRequest): Promise<string> {

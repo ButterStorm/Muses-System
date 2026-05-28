@@ -135,4 +135,33 @@ describe('Image API Route', () => {
       })
     );
   });
+
+  it('does not log full Gemini response bodies when generation fails', async () => {
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    mockAxiosPost.mockResolvedValue({
+      data: {
+        secret_internal_payload: 'do-not-log',
+        candidates: [],
+      },
+    });
+
+    try {
+      const req = createRequest({
+        model: 'gemini-2.5-flash-image',
+        prompt: '生成一张产品图',
+      });
+
+      const res = await POST(req);
+      const data = await res.json();
+      const logged = JSON.stringify(consoleError.mock.calls);
+
+      expect(res.status).toBe(500);
+      expect(data.error).toContain('无候选结果');
+      expect(logged).toContain('candidates=0');
+      expect(logged).not.toContain('do-not-log');
+      expect(logged).not.toContain('secret_internal_payload');
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
 });

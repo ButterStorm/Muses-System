@@ -6,6 +6,9 @@ process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-key';
 const mockSupabase = {
   from: jest.fn(),
   rpc: jest.fn(),
+  auth: {
+    getUser: jest.fn(),
+  },
 };
 
 jest.mock('@supabase/supabase-js', () => ({
@@ -18,16 +21,24 @@ import { NextRequest } from 'next/server';
 function createRequest(body: Record<string, unknown>): NextRequest {
   return new NextRequest('http://localhost:3000/api/invite-code', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: 'Bearer valid-token',
+    },
     body: JSON.stringify(body),
   });
 }
 
 describe('Invite Code API Route', () => {
+  const userId = '11111111-1111-4111-8111-111111111111';
+  const otherUserId = '22222222-2222-4222-8222-222222222222';
+
   beforeEach(() => {
     mockSupabase.from.mockReset();
     mockSupabase.rpc.mockReset();
+    mockSupabase.auth.getUser.mockReset();
     mockSupabase.rpc.mockResolvedValue({ data: null, error: null });
+    mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: userId } }, error: null });
   });
 
   it('should reject request without code and userId', async () => {
@@ -39,7 +50,7 @@ describe('Invite Code API Route', () => {
   });
 
   it('should reject request with empty code', async () => {
-    const req = createRequest({ code: '', userId: 'user-1' });
+    const req = createRequest({ code: '', userId });
     const res = await POST(req);
     expect(res.status).toBe(400);
   });
@@ -47,12 +58,33 @@ describe('Invite Code API Route', () => {
   it('should return expires_at null for non-existent activation (check action)', async () => {
     mockSupabase.from.mockReturnValue(createSelectChain({ data: null, error: null }));
 
-    const req = createRequest({ action: 'check', userId: 'nonexistent-user' });
+    const req = createRequest({ action: 'check', userId });
     const res = await POST(req);
     const data = await res.json();
-    // Will either be null or an error depending on Supabase mock
+
     expect(res.status).toBe(200);
     expect(data.expires_at).toBeNull();
+    expect(mockSupabase.auth.getUser).toHaveBeenCalledWith('valid-token');
+  });
+
+  it('should reject check action for invalid userId format', async () => {
+    const req = createRequest({ action: 'check', userId: 'not-a-uuid' });
+    const res = await POST(req);
+    const data = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(data.error).toBe('参数格式错误');
+    expect(mockSupabase.from).not.toHaveBeenCalled();
+  });
+
+  it('should reject check action for a different authenticated user', async () => {
+    const req = createRequest({ action: 'check', userId: otherUserId });
+    const res = await POST(req);
+    const data = await res.json();
+
+    expect(res.status).toBe(403);
+    expect(data.error).toBe('无权查询');
+    expect(mockSupabase.from).not.toHaveBeenCalled();
   });
 
   it('should grant 1000 credits when an invite code is activated for the first time', async () => {
@@ -71,14 +103,14 @@ describe('Invite Code API Route', () => {
       }))
       .mockReturnValueOnce(createUpdateChain({ error: null }));
 
-    const req = createRequest({ code: 'WELCOME', userId: 'user-1' });
+    const req = createRequest({ code: 'WELCOME', userId });
     const res = await POST(req);
     const data = await res.json();
 
     expect(res.status).toBe(200);
     expect(data).toEqual({ success: true, duration_days: 30, credits_granted: 1000 });
     expect(mockSupabase.rpc).toHaveBeenCalledWith('grant_user_credits', {
-      p_user_id: 'user-1',
+      p_user_id: userId,
       p_points: 1000,
       p_reason: 'invite code activation: WELCOME',
     });
@@ -92,13 +124,13 @@ describe('Invite Code API Route', () => {
         is_enabled: true,
         is_activated: true,
         duration_days: 30,
-        user_id: 'user-1',
+        user_id: userId,
         activated_at: new Date().toISOString(),
       },
       error: null,
     }));
 
-    const req = createRequest({ code: 'WELCOME', userId: 'user-1' });
+    const req = createRequest({ code: 'WELCOME', userId });
     const res = await POST(req);
     const data = await res.json();
 

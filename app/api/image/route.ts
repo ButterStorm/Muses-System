@@ -291,7 +291,7 @@ async function generateGeminiImage(
 
   const candidates = data?.candidates;
   if (!candidates || candidates.length === 0) {
-    console.error(`[Gemini ${model}] full response:`, JSON.stringify(data).substring(0, 500));
+    console.error(`[Gemini ${model}] generation failed: candidates=0`);
     throw new Error(`${model} 图片生成失败：无候选结果`);
   }
 
@@ -309,7 +309,7 @@ async function generateGeminiImage(
     }
   }
 
-  console.error(`[Gemini ${model}] response structure:`, JSON.stringify(data, null, 2).substring(0, 800));
+  console.error(`[Gemini ${model}] generation failed: no inline image data, candidates=${candidates.length}`);
   throw new Error(`${model} 图片生成失败：响应中无图片数据`);
 }
 

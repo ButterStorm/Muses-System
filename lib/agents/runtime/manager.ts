@@ -19,7 +19,7 @@ export async function getOrCreateAgentRuntime({
   now = Date.now(),
   ttlMs = DEFAULT_RUNTIME_TTL_MS,
 }: GetOrCreateRuntimeOptions): Promise<AgentRuntimeEntry> {
-  cleanupAgentRuntimes({ now, ttlMs });
+  await cleanupAgentRuntimes({ now, ttlMs });
 
   const current = runtimes.get(runtimeId);
   if (current && current.model === model) {
@@ -133,21 +133,26 @@ export async function disposeAgentRuntime(runtimeId: AgentRuntimeId): Promise<vo
   }
 }
 
-export function cleanupAgentRuntimes({
+export async function cleanupAgentRuntimes({
   now = Date.now(),
   ttlMs = DEFAULT_RUNTIME_TTL_MS,
-}: { now?: number; ttlMs?: number } = {}): void {
+}: { now?: number; ttlMs?: number } = {}): Promise<void> {
   for (const [runtimeId, entry] of runtimes) {
     if (now - entry.lastActiveAt > ttlMs) {
-      entry.session.dispose();
-      runtimes.delete(runtimeId);
+      try {
+        await entry.session.dispose();
+      } catch (error) {
+        console.error('[Agent Runtime] Failed to dispose expired runtime:', error);
+      } finally {
+        runtimes.delete(runtimeId);
+      }
     }
   }
 }
 
-export function resetAgentRuntimesForTests(): void {
-  for (const entry of runtimes.values()) {
-    entry.session.dispose();
-  }
+export async function resetAgentRuntimesForTests(): Promise<void> {
+  await Promise.allSettled(
+    [...runtimes.values()].map((entry) => entry.session.dispose())
+  );
   runtimes.clear();
 }

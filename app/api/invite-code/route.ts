@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createRateLimiter } from '@/lib/rateLimit';
+import { CreditBillingError, getAuthenticatedUserId } from '@/lib/credits';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const inviteCodeLimiter = createRateLimiter({ limit: 8, windowMs: 10 * 60 * 1000 });
 const INVITE_ACTIVATION_CREDITS = 1000;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function getServerClient() {
   if (!supabaseUrl || !supabaseServiceKey) {
@@ -22,6 +24,30 @@ export async function POST(request: NextRequest) {
 
     // 查询用户有效期
     if (body.action === 'check' && body.userId) {
+      if (typeof body.userId !== 'string' || !UUID_PATTERN.test(body.userId)) {
+        return NextResponse.json({ error: '参数格式错误' }, { status: 400 });
+      }
+
+      const forwardedFor = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim();
+      const clientKey = `${forwardedFor || 'local'}:${body.userId}`;
+      const rateLimit = inviteCodeLimiter.check(clientKey);
+      if (!rateLimit.allowed) {
+        return NextResponse.json(
+          { error: '尝试次数过多，请稍后再试' },
+          {
+            status: 429,
+            headers: {
+              'Retry-After': String(Math.ceil(rateLimit.retryAfterMs / 1000)),
+            },
+          }
+        );
+      }
+
+      const authenticatedUserId = await getAuthenticatedUserId(request);
+      if (body.userId !== authenticatedUserId) {
+        return NextResponse.json({ error: '无权查询' }, { status: 403 });
+      }
+
       const supabase = getServerClient();
       const { data: inviteCode } = await supabase
         .from('invite_codes')
@@ -122,7 +148,10 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ success: true, duration_days: inviteCode.duration_days });
-  } catch {
+  } catch (error) {
+    if (error instanceof CreditBillingError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
     return NextResponse.json({ error: '服务器错误' }, { status: 500 });
   }
 }

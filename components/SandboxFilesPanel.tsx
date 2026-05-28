@@ -2,14 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowUp, Download, File, Folder, FolderOpen, GripVertical, Loader2, RefreshCw } from 'lucide-react';
-
-interface SandboxFileEntry {
-  name: string;
-  path: string;
-  type: 'file' | 'directory';
-  size: number;
-  mimeType?: string;
-}
+import type { SandboxFileEntry } from '@/lib/agents/sandbox/types';
 
 const ROOT_PATH = '/home/user/musesAOS';
 
