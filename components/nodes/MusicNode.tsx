@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Handle, Position, NodeProps } from '@xyflow/react';
 import { Music, Download, ListMusic } from 'lucide-react';
 
@@ -13,6 +13,21 @@ interface MusicNodeData {
 const MusicNode = ({ data }: NodeProps) => {
   const nodeData = data as unknown as MusicNodeData;
   const [currentUrl] = useState(nodeData.musicUrl);
+  const [coverMode, setCoverMode] = useState<'direct' | 'proxy' | 'failed'>('direct');
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const coverUrl = nodeData.musicImageUrl && coverMode !== 'failed'
+    ? coverMode === 'direct'
+      ? nodeData.musicImageUrl
+      : `/api/media/proxy?url=${encodeURIComponent(nodeData.musicImageUrl)}`
+    : '';
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio || !currentUrl) return;
+
+    audio.preload = 'metadata';
+    audio.load();
+  }, [currentUrl]);
 
   const handleDownload = (url: string) => {
     if (url) {
@@ -38,13 +53,18 @@ const MusicNode = ({ data }: NodeProps) => {
           {currentUrl ? (
             <div className="space-y-4">
               <div className="flex flex-col items-center">
-                {nodeData.musicImageUrl && (
+                {coverUrl ? (
                   <div className="w-full aspect-square rounded-2xl overflow-hidden mb-4 shadow-lg">
                     <img
-                      src={nodeData.musicImageUrl}
+                      src={coverUrl}
                       alt="Cover"
+                      onError={() => setCoverMode((mode) => (mode === 'direct' ? 'proxy' : 'failed'))}
                       className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
                     />
+                  </div>
+                ) : (
+                  <div className="w-full aspect-square rounded-2xl mb-4 shadow-lg bg-orange-50 flex items-center justify-center text-orange-300">
+                    <Music size={52} strokeWidth={1.5} />
                   </div>
                 )}
 
@@ -72,8 +92,10 @@ const MusicNode = ({ data }: NodeProps) => {
 
               <div className="px-1">
                 <audio
+                  ref={audioRef}
                   src={currentUrl}
                   controls
+                  preload="metadata"
                   className="w-full h-8 opacity-60 hover:opacity-100 transition-opacity [&::-webkit-media-controls-enclosure]:rounded-lg"
                 />
               </div>

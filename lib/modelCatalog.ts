@@ -17,7 +17,8 @@ export const MODEL_CATALOG: Record<NodeType, ModelOption[]> = {
     { id: 'deepseek-v4-flash', label: 'DeepSeek V4 Flash' },
     { id: 'deepseek-v4-pro', label: 'DeepSeek V4 Pro' },
     { id: 'kimi-k2.5', label: 'Kimi K2.5' },
-    { id: 'doubao-seed-1-8-251228', label: 'Doubao Seed 1.8' },
+    { id: 'doubao-seed-2-0-lite-260215', label: 'Doubao Seed 2.0 Lite' },
+    { id: 'grok-4.3', label: 'Grok 4.3' },
   ],
   image: [
     { id: 'doubao-seedream-5.0-lite', label: 'Doubao Seedream 5.0 Lite' },
@@ -35,7 +36,13 @@ export const MODEL_CATALOG: Record<NodeType, ModelOption[]> = {
     { id: 'speech-2.6-hd', label: 'Speech 2.6 HD' },
   ],
   music: [
-    { id: 'suno-v5', label: 'Suno V5' },
+    { id: 'chirp-fenix', label: 'Suno V5.5' },
+    { id: 'chirp-crow', label: 'Suno V5' },
+    { id: 'chirp-bluejay', label: 'Suno V4.5+' },
+    { id: 'chirp-auk', label: 'Suno V4.5' },
+    { id: 'chirp-v4', label: 'Suno V4' },
+    { id: 'chirp-v3-5', label: 'Suno V3.5' },
+    { id: 'music-2.5', label: 'Minimax Music 2.5' },
   ],
 };
 
@@ -55,6 +62,10 @@ const VIDEO_DURATION_RANGES: Record<string, VideoDurationRange> = {
 
 export function getDefaultModel(type: NodeType): string {
   return MODELS[type][0];
+}
+
+export function getModelLabel(type: NodeType, modelId: string): string {
+  return MODEL_CATALOG[type].find((model) => model.id === modelId)?.label || modelId;
 }
 
 export function getVideoDurationRange(model: string): VideoDurationRange {

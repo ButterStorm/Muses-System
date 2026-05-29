@@ -6,7 +6,13 @@ import { creditErrorResponse, withCreditBilling } from '@/lib/credits';
 
 const DMX_API_KEY = process.env.DMX_API_KEY;
 const DMX_BASE_URL = 'https://www.dmxapi.cn/v1';
-const DMX_DOUBAO_TEXT_MODEL = process.env.DMX_DOUBAO_TEXT_MODEL || 'doubao-1.6-chat';
+const AI302_API_KEY = process.env.AI302_API_KEY;
+const AI302_BASE_URL = (process.env.AI302_BASE_URL || 'https://api.302ai.com').replace(/\/$/, '');
+const AI302_DOUBAO_TEXT_MODEL = 'doubao-seed-2-0-lite-260215';
+const AI302_TEXT_MODELS = new Set([
+  AI302_DOUBAO_TEXT_MODEL,
+  'grok-4.3',
+]);
 
 const TextGenerationSchema = z.object({
   prompt: z.string().min(1).max(8000),
@@ -15,8 +21,8 @@ const TextGenerationSchema = z.object({
     'deepseek-v4-flash',
     'deepseek-v4-pro',
     'kimi-k2.5',
-    'doubao',
-    'doubao-seed-1-8-251228',
+    'doubao-seed-2-0-lite-260215',
+    'grok-4.3',
     'gemini-3-flash',
     'gemini-3-pro'
   ]),
@@ -34,15 +40,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!DMX_API_KEY) {
+    const { prompt, model, imageUrl } = validationResult.data;
+    const provider = getTextProvider(model);
+    const apiKey = provider === '302' ? AI302_API_KEY : DMX_API_KEY;
+    if (!apiKey) {
       return NextResponse.json(
-        { error: '服务器配置错误：API Key 未配置' },
+        { error: provider === '302' ? '服务器配置错误：AI302_API_KEY 未配置' : '服务器配置错误：DMX_API_KEY 未配置' },
         { status: 500 }
       );
     }
 
-    const { prompt, model, imageUrl } = validationResult.data;
-    const resolvedModel = (model === 'doubao' || model === 'doubao-seed-1-8-251228') ? DMX_DOUBAO_TEXT_MODEL : model;
+    const resolvedModel = model;
+    const baseUrl = provider === '302' ? `${AI302_BASE_URL}/v1` : DMX_BASE_URL;
     const requestTimeoutMs = getTextModelTimeoutMs(model);
 
     let content: string | Array<{ type: string; text?: string; image_url?: { url: string } }>;
@@ -73,10 +82,10 @@ export async function POST(request: NextRequest) {
       { feature: 'text', model },
       async () => {
         const response = await postJson(
-          `${DMX_BASE_URL}/chat/completions`,
+          `${baseUrl}/chat/completions`,
           requestBody,
           {
-            Authorization: `Bearer ${DMX_API_KEY}`,
+            Authorization: `Bearer ${apiKey}`,
             'Content-Type': 'application/json',
             Accept: 'application/json',
           },
@@ -191,4 +200,8 @@ class ApiRouteError extends Error {
     super(message);
     this.name = 'ApiRouteError';
   }
+}
+
+function getTextProvider(model: string): 'dmx' | '302' {
+  return AI302_TEXT_MODELS.has(model) ? '302' : 'dmx';
 }

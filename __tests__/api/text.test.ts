@@ -4,6 +4,7 @@ import { EventEmitter } from 'node:events';
 
 // Mock environment variables
 process.env.DMX_API_KEY = 'test-api-key';
+process.env.AI302_API_KEY = 'test-302-key';
 
 const mockHttpsRequest = jest.fn();
 
@@ -109,6 +110,57 @@ describe('Text API Route', () => {
       const legacyReq = createRequest({ prompt: 'hello', model: 'deepseek-chat' });
       const legacyRes = await POST(legacyReq);
       expect(legacyRes.status).toBe(400);
+    });
+
+    it('should replace doubao seed 1.8 with seed 2.0 lite through 302', async () => {
+      mockHttpsResponse(200, {
+        choices: [{ message: { content: '豆包 2.0' } }],
+      });
+
+      const legacyReq = createRequest({ prompt: 'hello', model: 'doubao-seed-1-8-251228' });
+      const legacyRes = await POST(legacyReq);
+      expect(legacyRes.status).toBe(400);
+
+      const req = createRequest({ prompt: 'hello', model: 'doubao-seed-2-0-lite-260215' });
+      const res = await POST(req);
+      const data = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(data.text).toBe('豆包 2.0');
+      expect(mockHttpsRequest).toHaveBeenCalledWith(
+        expect.objectContaining({
+          method: 'POST',
+          hostname: 'api.302ai.com',
+          path: '/v1/chat/completions',
+          headers: expect.objectContaining({
+            Authorization: 'Bearer test-302-key',
+          }),
+        }),
+        expect.any(Function)
+      );
+    });
+
+    it('should route grok 4.3 through 302', async () => {
+      mockHttpsResponse(200, {
+        choices: [{ message: { content: 'grok ok' } }],
+      });
+
+      const req = createRequest({ prompt: 'hello', model: 'grok-4.3' });
+      const res = await POST(req);
+      const data = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(data.text).toBe('grok ok');
+      expect(mockHttpsRequest).toHaveBeenCalledWith(
+        expect.objectContaining({
+          hostname: 'api.302ai.com',
+          path: '/v1/chat/completions',
+          headers: expect.objectContaining({
+            Authorization: 'Bearer test-302-key',
+          }),
+        }),
+        expect.any(Function)
+      );
     });
 
     it('should reject prompt exceeding max length', async () => {

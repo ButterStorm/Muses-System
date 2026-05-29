@@ -1,7 +1,8 @@
 import axios from 'axios';
-import { API_TIMEOUTS, createApiClient } from './apiClient';
+import { createApiClient } from './apiClient';
 
-const axiosClient = createApiClient(API_TIMEOUTS.media);
+const MUSIC_TIMEOUT_MS = 12 * 60 * 1000;
+const axiosClient = createApiClient(MUSIC_TIMEOUT_MS);
 
 interface MusicGenerationResponse {
   songs: Array<{ audio_url: string; image_url: string }>;
@@ -12,13 +13,13 @@ interface MusicGenerationError {
   details?: unknown;
 }
 
-export interface SunoInspirationOptions {
+export interface MusicInspirationOptions {
   gpt_description_prompt: string;
   make_instrumental?: boolean;
   mv?: string;
 }
 
-export interface SunoCustomOptions {
+export interface MusicCustomOptions {
   prompt: string;
   title: string;
   tags?: string;
@@ -33,14 +34,14 @@ export interface SunoCustomOptions {
  */
 export const generateMusicInspiration = async (
   description: string,
-  options: Partial<SunoInspirationOptions> = {}
+  options: Partial<MusicInspirationOptions> = {}
 ): Promise<Array<{ audio_url: string; image_url: string }>> => {
   try {
     const response = await axiosClient.post<MusicGenerationResponse>('/music', {
       mode: 'inspiration',
       description,
       makeInstrumental: options.make_instrumental || false,
-      mv: options.mv || 'chirp-v5',
+      mv: options.mv || 'chirp-crow',
     });
 
     const songs = response.data?.songs || [];
@@ -50,7 +51,7 @@ export const generateMusicInspiration = async (
 
     return songs;
   } catch (error) {
-    console.error('[Suno] 音乐生成失败:', error);
+    console.error('[Music] 音乐生成失败:', error);
     if (axios.isAxiosError(error)) {
       const data = error.response?.data as MusicGenerationError | undefined;
       const message = data?.error || error.message || '音乐生成失败';
@@ -71,7 +72,7 @@ export const generateMusicInspiration = async (
 export const generateMusicCustom = async (
   prompt: string,
   title: string,
-  options: Partial<SunoCustomOptions> = {}
+  options: Partial<MusicCustomOptions> = {}
 ): Promise<Array<{ audio_url: string; image_url: string }>> => {
   try {
     const response = await axiosClient.post<MusicGenerationResponse>('/music', {
@@ -79,7 +80,7 @@ export const generateMusicCustom = async (
       prompt,
       title,
       tags: options.tags,
-      mv: options.mv || 'chirp-v5',
+      mv: options.mv || 'chirp-crow',
     });
 
     const songs = response.data?.songs || [];
@@ -89,7 +90,7 @@ export const generateMusicCustom = async (
 
     return songs;
   } catch (error) {
-    console.error('[Suno] 音乐生成失败:', error);
+    console.error('[Music] 音乐生成失败:', error);
     if (axios.isAxiosError(error)) {
       const data = error.response?.data as MusicGenerationError | undefined;
       const message = data?.error || error.message || '音乐生成失败';

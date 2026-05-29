@@ -8,6 +8,7 @@ import { generateImageWithDmx } from '@/services/ImageService';
 import { generateVideoKling, generateVideoDoubao, generateVideoSeedance20, generateVideoHappyHorse } from '@/services/VideoService';
 import { textToSpeech } from '@/services/AudioService';
 import { generateMusicInspiration, generateMusicCustom } from '@/services/MusicService';
+import { getModelLabel } from '@/lib/modelCatalog';
 import { TYPE_CONFIG, MODELS } from './unified-types';
 import type { NodeType, MusicGenerationMode, UnifiedNodeData } from './unified-types';
 import ConfigPanel from './ConfigPanel';
@@ -217,7 +218,7 @@ const UnifiedGeneratorNode = ({ id, data }: NodeProps) => {
                         generationResults = await textToSpeech(promptToUse, { model: nodeData.model, voice: nodeData.voice });
                         break;
                     case 'music': {
-                        const apiMv = nodeData.model === 'suno-v5' ? 'chirp-v5' : nodeData.model;
+                        const apiMv = nodeData.model === 'suno-v5' ? 'chirp-crow' : nodeData.model;
                         if (nodeData.musicMode === 'inspiration') {
                             generationResults = await generateMusicInspiration(promptToUse, {
                                 mv: apiMv,
@@ -243,7 +244,7 @@ const UnifiedGeneratorNode = ({ id, data }: NodeProps) => {
                     };
 
                     let newNodeType = 'textNode';
-                    let newNodeData: Record<string, unknown> = { label: `${TYPE_CONFIG[nodeData.type].label} · ${nodeData.model}`, prompt: promptToUse };
+                    let newNodeData: Record<string, unknown> = { label: `${TYPE_CONFIG[nodeData.type].label} · ${getModelLabel(nodeData.type, nodeData.model)}`, prompt: promptToUse };
 
                     switch (nodeData.type) {
                         case 'text':
@@ -302,6 +303,7 @@ const UnifiedGeneratorNode = ({ id, data }: NodeProps) => {
     const config = TYPE_CONFIG[nodeData.type];
     const { accent, classes } = config;
     const availableModels = MODELS[nodeData.type];
+    const selectedModelLabel = getModelLabel(nodeData.type, nodeData.model);
 
     return (
         <div className="w-72 relative">
@@ -396,7 +398,7 @@ const UnifiedGeneratorNode = ({ id, data }: NodeProps) => {
                                 onClick={() => setIsModelMenuOpen(prev => !prev)}
                                 className={`w-full px-3 py-2 bg-slate-50/80 border border-slate-100 rounded-xl text-[13px] focus:ring-2 ${classes.ring} transition-all cursor-pointer font-medium text-slate-600 text-left flex items-center justify-between hover:bg-slate-50`}
                             >
-                                <span>{nodeData.model}</span>
+                                <span>{selectedModelLabel}</span>
                                 <ChevronDown size={12} className={`text-slate-300 transition-transform ${isModelMenuOpen ? 'rotate-180' : ''}`} />
                             </button>
                             <div
@@ -425,7 +427,7 @@ const UnifiedGeneratorNode = ({ id, data }: NodeProps) => {
                                                 : 'text-slate-500 hover:bg-slate-50/80'
                                         }`}
                                     >
-                                        {model}
+                                        {getModelLabel(nodeData.type, model)}
                                     </button>
                                 ))}
                             </div>
