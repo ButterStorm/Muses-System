@@ -3,6 +3,7 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
 import { X, Download } from 'lucide-react';
+import { downloadImageUrl } from '@/lib/downloadMedia';
 
 interface ImageModalProps {
   isOpen: boolean;
@@ -16,19 +17,9 @@ const ImageModal: React.FC<ImageModalProps> = ({ isOpen, onClose, imageUrl, titl
 
   const handleDownload = async () => {
     try {
-      const res = await fetch(imageUrl, { mode: 'cors' });
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      const filename = imageUrl.split('/').pop()?.split('?')[0] || 'generated-image.png';
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch {
-      window.open(imageUrl, '_blank');
+      await downloadImageUrl(imageUrl);
+    } catch (error) {
+      console.error('图片下载失败:', error);
     }
   };
 

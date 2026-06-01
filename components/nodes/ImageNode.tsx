@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Handle, Position, NodeProps } from '@xyflow/react';
 import { Maximize2, Download, Image as ImageIcon, Copy, Check } from 'lucide-react';
 import ImageModal from '../modals/ImageModal';
+import { downloadImageUrl } from '@/lib/downloadMedia';
 
 interface ImageNodeData {
   label: string;
@@ -28,19 +29,9 @@ const ImageNode = ({ data }: NodeProps) => {
 
   const handleDownload = async () => {
     try {
-      const res = await fetch(nodeData.imageUrl, { mode: 'cors' });
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      const filename = nodeData.imageUrl.split('/').pop()?.split('?')[0] || 'generated-image.png';
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch {
-      window.open(nodeData.imageUrl, '_blank');
+      await downloadImageUrl(nodeData.imageUrl);
+    } catch (error) {
+      console.error('图片下载失败:', error);
     }
   };
 

@@ -87,6 +87,14 @@ export async function GET(request: NextRequest) {
 
 function getAllowedHosts() {
   const hosts = new Set(DEFAULT_ALLOWED_HOSTS);
+  const r2PublicBaseUrl = process.env.R2_PUBLIC_BASE_URL;
+  if (r2PublicBaseUrl) {
+    try {
+      hosts.add(new URL(r2PublicBaseUrl).hostname.toLowerCase());
+    } catch {
+      // Ignore invalid optional R2 public URL configuration here.
+    }
+  }
   for (const host of (process.env.MEDIA_PROXY_ALLOWED_HOSTS || '').split(',')) {
     const normalized = host.trim().toLowerCase();
     if (normalized) hosts.add(normalized);
