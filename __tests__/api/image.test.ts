@@ -136,6 +136,52 @@ describe('Image API Route', () => {
     );
   });
 
+  it('uses chat completions for recraft vector images and uploads returned data urls', async () => {
+    mockAxiosPost.mockResolvedValue({
+      data: {
+        choices: [{
+          message: {
+            images: [{
+              image_url: {
+                url: `data:image/svg+xml;base64,${Buffer.from('<svg />').toString('base64')}`,
+              },
+            }],
+          },
+        }],
+      },
+    });
+    mockUploadBuffer.mockResolvedValue('https://cdn.example.com/vector.svg');
+
+    const req = createRequest({
+      model: 'recraft-v4.1-pro-vector',
+      prompt: '生成一个赛车前的男人矢量图',
+    });
+
+    const res = await POST(req);
+    const data = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(data.urls).toEqual(['https://cdn.example.com/vector.svg']);
+    expect(mockAxiosPost).toHaveBeenCalledWith(
+      'https://www.dmxapi.cn/v1/chat/completions',
+      expect.objectContaining({
+        model: 'recraft-v4.1-pro-vector',
+        messages: [{ role: 'user', content: '生成一个赛车前的男人矢量图' }],
+        modalities: ['image'],
+      }),
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: 'Bearer test-api-key',
+        }),
+      })
+    );
+    expect(mockUploadBuffer).toHaveBeenCalledWith(
+      expect.any(ArrayBuffer),
+      'image/svg+xml',
+      'svg'
+    );
+  });
+
   it('does not log full Gemini response bodies when generation fails', async () => {
     const consoleError = jest.spyOn(console, 'error').mockImplementation(() => undefined);
     mockAxiosPost.mockResolvedValue({

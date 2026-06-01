@@ -1,27 +1,18 @@
 import axios from 'axios';
+import type {
+  CreditBalance,
+  CreditTransaction as BackendCreditTransaction,
+} from '@/lib/credits';
 import { API_TIMEOUTS, createApiClient } from './apiClient';
 
 const axiosClient = createApiClient(API_TIMEOUTS.standard);
 
-export interface CreditBalance {
-  balance_points: number;
-  frozen_points: number;
-  available_points: number;
-  lifetime_granted_points: number;
-  lifetime_spent_points: number;
-}
+export type { CreditBalance };
 
-export interface CreditTransaction {
-  id: string;
-  type: string;
-  status: string;
-  points: number;
-  feature: string | null;
-  model: string | null;
-  reason: string | null;
-  created_at: string;
-  settled_at: string | null;
-}
+export type CreditTransaction = Pick<
+  BackendCreditTransaction,
+  'id' | 'type' | 'status' | 'points' | 'feature' | 'model' | 'reason' | 'created_at' | 'settled_at'
+>;
 
 export async function getCreditBalance(): Promise<CreditBalance | null> {
   try {

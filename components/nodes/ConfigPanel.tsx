@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { getAvailableVoices } from '@/services/AudioService';
 import { getVideoDurationRange } from '@/lib/modelCatalog';
-import type { MusicGenerationMode, UnifiedNodeData } from './unified-types';
+import type { AudioResponseFormat, MusicGenerationMode, UnifiedNodeData } from './unified-types';
 
 interface ConfigPanelProps {
     nodeData: UnifiedNodeData;
@@ -69,11 +69,22 @@ export default function ConfigPanel({ nodeData, setNodeData, accent, ringColor }
         () => voices.map((v) => ({ value: v.id, label: v.name })),
         [voices]
     );
+    const audioFormatOptions = useMemo(
+        () => [
+            { value: 'json', label: 'JSON' },
+            { value: 'text', label: 'Text' },
+            { value: 'srt', label: 'SRT' },
+            { value: 'verbose_json', label: 'Verbose JSON' },
+            { value: 'vtt', label: 'VTT' },
+            { value: 'diarized_json', label: 'Diarized JSON' },
+        ],
+        []
+    );
 
     const label = nodeData.type === 'video'
         ? '时长'
         : nodeData.type === 'audio'
-            ? '音色'
+            ? nodeData.model === 'whisper-1' ? '输出格式' : '音色'
             : nodeData.type === 'music'
                 ? '模式'
                 : '数量';
@@ -91,10 +102,14 @@ export default function ConfigPanel({ nodeData, setNodeData, accent, ringColor }
                 />
             ) : nodeData.type === 'audio' ? (
                 <DropdownField
-                    value={nodeData.voice}
-                    options={voiceOptions}
+                    value={nodeData.model === 'whisper-1' ? nodeData.audioResponseFormat : nodeData.voice}
+                    options={nodeData.model === 'whisper-1' ? audioFormatOptions : voiceOptions}
                     ringColor={ringColor}
-                    onChange={(value) => setNodeData(prev => ({ ...prev, voice: String(value) }))}
+                    onChange={(value) => setNodeData(prev => (
+                        nodeData.model === 'whisper-1'
+                            ? { ...prev, audioResponseFormat: String(value) as AudioResponseFormat }
+                            : { ...prev, voice: String(value) }
+                    ))}
                 />
             ) : nodeData.type === 'music' ? (
                 <MusicConfig nodeData={nodeData} setNodeData={setNodeData} accent={accent} ringColor={ringColor} />

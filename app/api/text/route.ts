@@ -3,11 +3,8 @@ import https from 'node:https';
 import { z } from 'zod';
 import { getTextModelTimeoutMs } from '@/lib/textModelTimeout';
 import { creditErrorResponse, withCreditBilling } from '@/lib/credits';
+import { formatBearerToken, getAi302Config, getDmxConfig } from '@/lib/apiConfig';
 
-const DMX_API_KEY = process.env.DMX_API_KEY;
-const DMX_BASE_URL = 'https://www.dmxapi.cn/v1';
-const AI302_API_KEY = process.env.AI302_API_KEY;
-const AI302_BASE_URL = (process.env.AI302_BASE_URL || 'https://api.302ai.com').replace(/\/$/, '');
 const AI302_DOUBAO_TEXT_MODEL = 'doubao-seed-2-0-lite-260215';
 const AI302_TEXT_MODELS = new Set([
   AI302_DOUBAO_TEXT_MODEL,
@@ -42,7 +39,8 @@ export async function POST(request: NextRequest) {
 
     const { prompt, model, imageUrl } = validationResult.data;
     const provider = getTextProvider(model);
-    const apiKey = provider === '302' ? AI302_API_KEY : DMX_API_KEY;
+    const providerConfig = provider === '302' ? getAi302Config() : getDmxConfig();
+    const apiKey = providerConfig.apiKey;
     if (!apiKey) {
       return NextResponse.json(
         { error: provider === '302' ? '服务器配置错误：AI302_API_KEY 未配置' : '服务器配置错误：DMX_API_KEY 未配置' },
@@ -51,7 +49,7 @@ export async function POST(request: NextRequest) {
     }
 
     const resolvedModel = model;
-    const baseUrl = provider === '302' ? `${AI302_BASE_URL}/v1` : DMX_BASE_URL;
+    const baseUrl = `${providerConfig.baseUrl}/v1`;
     const requestTimeoutMs = getTextModelTimeoutMs(model);
 
     let content: string | Array<{ type: string; text?: string; image_url?: { url: string } }>;
@@ -85,7 +83,7 @@ export async function POST(request: NextRequest) {
           `${baseUrl}/chat/completions`,
           requestBody,
           {
-            Authorization: `Bearer ${apiKey}`,
+            Authorization: formatBearerToken(apiKey),
             'Content-Type': 'application/json',
             Accept: 'application/json',
           },

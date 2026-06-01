@@ -7,6 +7,7 @@ import {
   Node,
   Edge,
   Connection,
+  ConnectionLineType,
   ConnectionMode,
   Background,
   useEdgesState,
@@ -34,6 +35,7 @@ import { useProjectStore } from '@/stores/projectStore';
 import { useAuthStore } from '@/stores/authStore';
 import { cloneFlowState, cloneNodes } from '@/lib/flowHistory';
 import { getDefaultModel } from '@/lib/modelCatalog';
+import { uploadFile, uploadImage } from '@/lib/storage';
 import { toast } from 'sonner';
 
 // 撤销/重做历史管理
@@ -41,6 +43,8 @@ interface HistoryEntry {
   nodes: Node[];
   edges: Edge[];
 }
+
+type ReferenceKind = 'image' | 'video' | 'audio';
 
 const MAX_HISTORY = 50;
 
@@ -54,6 +58,53 @@ const nodeTypes = {
   textInputNode: TextInputNode,
   imageInputNode: ImageInputNode,
 };
+
+const defaultEdgeOptions: Partial<Edge> = {
+  type: 'smoothstep',
+  animated: true,
+  style: { strokeWidth: 2, stroke: '#94a3b8' },
+};
+
+function normalizeEdge(edge: Edge): Edge {
+  return {
+    ...edge,
+    type: edge.type || defaultEdgeOptions.type,
+    animated: edge.animated ?? defaultEdgeOptions.animated,
+    style: {
+      ...(defaultEdgeOptions.style || {}),
+      ...(edge.style || {}),
+    },
+  };
+}
+
+function normalizeEdges(edges: Edge[]): Edge[] {
+  return edges.map(normalizeEdge);
+}
+
+function detectReferenceKind(file: File): ReferenceKind | null {
+  if (file.type.startsWith('image/')) return 'image';
+  if (file.type.startsWith('video/')) return 'video';
+  if (file.type.startsWith('audio/')) return 'audio';
+  return null;
+}
+
+function getReferenceNodeData(kind: ReferenceKind, url: string, file: File): Record<string, unknown> {
+  return {
+    label: kind === 'image' ? '图片参考' : kind === 'video' ? '视频参考' : '音频参考',
+    mediaKind: kind,
+    mediaUrl: url,
+    mediaName: file.name,
+    mediaType: file.type,
+    imageUrl: kind === 'image' ? url : '',
+    videoUrl: kind === 'video' ? url : '',
+    audioUrl: kind === 'audio' ? url : '',
+    imageUrls: kind === 'image' ? [url] : [],
+    videoUrls: kind === 'video' ? [url] : [],
+    audioUrls: kind === 'audio' ? [url] : [],
+    videoFiles: kind === 'video' ? [{ url, name: file.name, type: file.type }] : [],
+    audioFiles: kind === 'audio' ? [{ url, name: file.name, type: file.type }] : [],
+  };
+}
 
 const initialNodes: Node[] = [
   {
@@ -82,7 +133,7 @@ const initialNodes: Node[] = [
 ];
 
 const initialEdges: Edge[] = [
-  { id: 'e2', source: 'input-text', target: 'gen-1', animated: true, style: { strokeWidth: 2, stroke: '#e2e8f0' } },
+  normalizeEdge({ id: 'e2', source: 'input-text', target: 'gen-1', style: { strokeWidth: 2, stroke: '#e2e8f0' } }),
 ];
 
 interface FlowCanvasProps {
@@ -94,7 +145,7 @@ const FlowInner: React.FC<FlowCanvasProps> = ({ projectId }) => {
   // 有 projectId = 打开已保存项目，用空数组避免默认节点覆盖存储数据
   const [nodes, setNodes, onNodesChange] = useNodesState(projectId ? [] : initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(projectId ? [] : initialEdges);
-  const { fitView, getViewport, deleteElements, getNodes, getEdges } = useReactFlow();
+  const { fitView, getViewport, screenToFlowPosition, deleteElements, getNodes, getEdges } = useReactFlow();
 
   const { currentProject, setCurrentProject, setDirty, loadProject, createProject, saveProject, renameProject } = useProjectStore();
   const { user } = useAuthStore();
@@ -241,7 +292,7 @@ const FlowInner: React.FC<FlowCanvasProps> = ({ projectId }) => {
       loadProject(projectId).then((flowData) => {
         if (flowData && flowData.nodes && flowData.nodes.length > 0) {
           setNodes(flowData.nodes);
-          setEdges(flowData.edges || []);
+          setEdges(normalizeEdges(flowData.edges || []));
           requestAnimationFrame(() => fitView({ duration: 300 }));
         }
       });
@@ -250,6 +301,13 @@ const FlowInner: React.FC<FlowCanvasProps> = ({ projectId }) => {
       setCurrentProject(null);
     }
   }, [projectId]);
+
+  useEffect(() => {
+    setEdges((currentEdges) => {
+      const needsNormalization = currentEdges.some((edge) => !edge.type);
+      return needsNormalization ? normalizeEdges(currentEdges) : currentEdges;
+    });
+  }, [setEdges]);
 
   // 标记脏状态 + 推送历史快照
   useEffect(() => {
@@ -261,11 +319,11 @@ const FlowInner: React.FC<FlowCanvasProps> = ({ projectId }) => {
   }, [nodes, edges]);
 
   const onConnect = useCallback(
-    (params: Connection) => setEdges((eds) => addEdge(params, eds)),
+    (params: Connection) => setEdges((eds) => addEdge({ ...params, ...defaultEdgeOptions }, eds)),
     [setEdges]
   );
 
-  const addNode = (type: string, label: string, initialData: Record<string, unknown> = {}) => {
+  const addNode = (type: string, label: string, initialData: Record<string, unknown> = {}, position?: { x: number; y: number }) => {
     // Calculate canvas center of current viewport
     const { x: vx, y: vy, zoom } = getViewport();
     const container = document.querySelector('.react-flow') as HTMLElement;
@@ -277,7 +335,7 @@ const FlowInner: React.FC<FlowCanvasProps> = ({ projectId }) => {
     const base = {
       id: `node-${Date.now()}`,
       type,
-      position: { x: cx, y: cy },
+      position: position || { x: cx, y: cy },
     } as Partial<Node>;
 
     let data: any = { label, prompt: '', ...initialData };
@@ -288,7 +346,7 @@ const FlowInner: React.FC<FlowCanvasProps> = ({ projectId }) => {
     if (type === 'musicNode') data = { label, prompt: '', musicUrl: '', isLoading: false, ...initialData };
     if (type === 'unifiedNode') data = { label, type: 'text', prompt: '', model: getDefaultModel('text'), count: 1, duration: 5, voice: 'zh_male_sunny', output: null, isLoading: false, ...initialData };
     if (type === 'textInputNode') data = { label, text: '', ...initialData };
-    if (type === 'imageInputNode') data = { label, imageUrls: [], videoUrls: [], audioUrls: [], imageUrl: '', videoUrl: '', audioUrl: '', ...initialData };
+    if (type === 'imageInputNode') data = { label, mediaKind: '', mediaUrl: '', mediaName: '', mediaType: '', imageUrls: [], videoUrls: [], audioUrls: [], imageUrl: '', videoUrl: '', audioUrl: '', videoFiles: [], audioFiles: [], ...initialData };
 
     const newNode: Node = {
       ...(base as Node),
@@ -298,6 +356,57 @@ const FlowInner: React.FC<FlowCanvasProps> = ({ projectId }) => {
     };
     setNodes((nds) => [...nds, newNode]);
   };
+
+  const handleCanvasDragOver = useCallback((event: React.DragEvent) => {
+    if (event.dataTransfer.types.includes('Files')) {
+      event.preventDefault();
+      event.dataTransfer.dropEffect = 'copy';
+    }
+  }, []);
+
+  const handleCanvasDrop = useCallback(async (event: React.DragEvent) => {
+    const files = Array.from(event.dataTransfer.files || []);
+    if (files.length === 0) return;
+
+    event.preventDefault();
+
+    const supportedFiles = files
+      .map((file) => ({ file, kind: detectReferenceKind(file) }))
+      .filter((item): item is { file: File; kind: ReferenceKind } => !!item.kind);
+
+    if (supportedFiles.length === 0) {
+      toast.error('请拖入图片、视频或音频文件');
+      return;
+    }
+
+    pushHistory(getNodes(), getEdges());
+
+    const dropPosition = screenToFlowPosition({ x: event.clientX, y: event.clientY });
+    const uploadingToast = toast.loading(`正在上传 ${supportedFiles.length} 个参考素材...`);
+
+    try {
+      const createdNodes: Node[] = [];
+      for (let index = 0; index < supportedFiles.length; index++) {
+        const { file, kind } = supportedFiles[index];
+        const url = kind === 'image' ? await uploadImage(file) : await uploadFile(file);
+        createdNodes.push({
+          id: `ref-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 6)}`,
+          type: 'imageInputNode',
+          position: {
+            x: dropPosition.x + (index % 3) * 320,
+            y: dropPosition.y + Math.floor(index / 3) * 260,
+          },
+          data: getReferenceNodeData(kind, url, file),
+        });
+      }
+
+      setNodes((nds) => [...nds, ...createdNodes]);
+      toast.success(`已添加 ${createdNodes.length} 个参考节点`, { id: uploadingToast });
+    } catch (error) {
+      console.error('[Canvas Drop] 上传失败:', error);
+      toast.error(error instanceof Error ? error.message : '上传失败', { id: uploadingToast });
+    }
+  }, [getEdges, getNodes, pushHistory, screenToFlowPosition, setNodes]);
 
   const handleSave = async () => {
     if (!user || saveLockRef.current) return;
@@ -356,7 +465,12 @@ const FlowInner: React.FC<FlowCanvasProps> = ({ projectId }) => {
               onEdgesChange={onEdgesChange}
               onConnect={onConnect}
               nodeTypes={nodeTypes}
-              connectionMode={ConnectionMode.Loose}
+              connectionMode={ConnectionMode.Strict}
+              connectionLineType={ConnectionLineType.SmoothStep}
+              connectionLineStyle={{ stroke: '#94a3b8', strokeWidth: 2 }}
+              defaultEdgeOptions={defaultEdgeOptions}
+              onDragOver={handleCanvasDragOver}
+              onDrop={handleCanvasDrop}
               fitView
               fitViewOptions={{ padding: 0.35, maxZoom: 0.85 }}
               className="bg-gray-50"

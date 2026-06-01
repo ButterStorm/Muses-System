@@ -1,5 +1,6 @@
 export type NodeType = 'text' | 'image' | 'video' | 'audio' | 'music';
 export type MusicGenerationMode = 'inspiration' | 'custom';
+export type AudioResponseFormat = 'json' | 'text' | 'srt' | 'verbose_json' | 'vtt' | 'diarized_json';
 export { MODELS } from '@/lib/modelCatalog';
 
 export interface UnifiedNodeData {
@@ -9,6 +10,7 @@ export interface UnifiedNodeData {
     count: number;
     duration: number;
     voice: string;
+    audioResponseFormat: AudioResponseFormat;
     musicMode: MusicGenerationMode;
     instrumental: boolean;
     songTitle: string;

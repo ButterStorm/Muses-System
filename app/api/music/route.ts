@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import axios from 'axios';
+import { formatBearerToken, getAi302Config, getDmxConfig } from '@/lib/apiConfig';
 import { creditErrorResponse, withCreditBilling } from '@/lib/credits';
 import {
   build302SunoPayload,
@@ -13,10 +14,8 @@ import {
   parseDmxMinimaxResponse,
 } from '@/lib/musicProviders';
 
-const DMX_API_KEY = process.env.DMX_API_KEY;
-const DMX_BASE_URL = (process.env.DMX_BASE_URL || 'https://www.dmxapi.cn').replace(/\/$/, '');
-const AI302_API_KEY = process.env.AI302_API_KEY;
-const AI302_BASE_URL = (process.env.AI302_BASE_URL || 'https://api.302ai.com').replace(/\/$/, '');
+const SUNO_FETCH_TIMEOUT_MS = 10_000;
+const SUNO_MAX_POLL_ATTEMPTS = 60;
 
 // 输入验证 schema
 const MusicInspirationSchema = z.object({
@@ -53,7 +52,8 @@ export async function POST(request: NextRequest) {
     const data = validationResult.data;
     const model = normalizeMusicModel(data.mv);
     const provider = getMusicProvider(model);
-    const requiredApiKey = provider === 'dmx-minimax' ? DMX_API_KEY : AI302_API_KEY;
+    const providerConfig = provider === 'dmx-minimax' ? getDmxConfig() : getAi302Config();
+    const requiredApiKey = providerConfig.apiKey;
 
     if (!requiredApiKey) {
       return NextResponse.json(
@@ -67,8 +67,8 @@ export async function POST(request: NextRequest) {
       { feature: 'music', model },
       async () => {
         const songs = provider === 'dmx-minimax'
-          ? await generateDmxMinimaxMusic(data, requiredApiKey)
-          : await generate302SunoMusic(data, requiredApiKey);
+          ? await generateDmxMinimaxMusic(data, requiredApiKey, providerConfig.baseUrl)
+          : await generate302SunoMusic(data, requiredApiKey, providerConfig.baseUrl);
 
         if (songs.length === 0) {
           throw new Error('音乐生成失败：未返回音频地址');
@@ -101,20 +101,17 @@ export async function POST(request: NextRequest) {
   }
 }
 
-function formatAuthorizationHeader(apiKey: string): string {
-  return apiKey.toLowerCase().startsWith('bearer ') ? apiKey : `Bearer ${apiKey}`;
-}
-
 async function generateDmxMinimaxMusic(
   data: z.infer<typeof MusicGenerationSchema>,
-  apiKey: string
+  apiKey: string,
+  baseUrl: string
 ) {
   const response = await axios.post(
-    `${DMX_BASE_URL}/v1/responses`,
+    `${baseUrl}/v1/responses`,
     buildDmxMinimaxPayload(data),
     {
       headers: {
-        Authorization: formatAuthorizationHeader(apiKey),
+        Authorization: formatBearerToken(apiKey),
         'Content-Type': 'application/json',
         Accept: 'application/json',
       },
@@ -127,14 +124,15 @@ async function generateDmxMinimaxMusic(
 
 async function generate302SunoMusic(
   data: z.infer<typeof MusicGenerationSchema>,
-  apiKey: string
+  apiKey: string,
+  baseUrl: string
 ) {
   const submitResponse = await axios.post(
-    `${AI302_BASE_URL}/suno/submit/music`,
+    `${baseUrl}/suno/submit/music`,
     build302SunoPayload(data),
     {
       headers: {
-        Authorization: formatAuthorizationHeader(apiKey),
+        Authorization: formatBearerToken(apiKey),
         'Content-Type': 'application/json',
         Accept: 'application/json',
       },
@@ -150,19 +148,17 @@ async function generate302SunoMusic(
     throw new Error('任务 ID 获取失败');
   }
 
-  const maxAttempts = 120;
-  const intervalMs = 5000;
-
-  for (let i = 0; i < maxAttempts; i++) {
-    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+  for (let i = 0; i < SUNO_MAX_POLL_ATTEMPTS; i++) {
+    await new Promise((resolve) => setTimeout(resolve, getSunoPollDelayMs(i)));
 
     const statusResponse = await axios.get(
-      `${AI302_BASE_URL}/suno/fetch/${taskId}`,
+      `${baseUrl}/suno/fetch/${taskId}`,
       {
         headers: {
-          Authorization: formatAuthorizationHeader(apiKey),
+          Authorization: formatBearerToken(apiKey),
           Accept: 'application/json',
         },
+        timeout: SUNO_FETCH_TIMEOUT_MS,
       }
     );
 
@@ -182,4 +178,10 @@ async function generate302SunoMusic(
   }
 
   throw new Error('音乐生成超时');
+}
+
+function getSunoPollDelayMs(attemptIndex: number): number {
+  if (attemptIndex < 12) return 5_000;
+  if (attemptIndex < 36) return 10_000;
+  return 15_000;
 }

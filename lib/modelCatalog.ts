@@ -22,6 +22,7 @@ export const MODEL_CATALOG: Record<NodeType, ModelOption[]> = {
   ],
   image: [
     { id: 'doubao-seedream-5.0-lite', label: 'Doubao Seedream 5.0 Lite' },
+    { id: 'recraft-v4.1-pro-vector', label: 'Recraft V4.1 Pro Vector' },
     { id: 'gemini-3-pro-image', label: 'Gemini 3 Pro Image' },
     { id: 'gemini-2.5-flash-image', label: 'Gemini 2.5 Flash Image' },
     { id: 'gpt-image-2', label: 'GPT Image 2' },
@@ -34,6 +35,7 @@ export const MODEL_CATALOG: Record<NodeType, ModelOption[]> = {
   ],
   audio: [
     { id: 'speech-2.6-hd', label: 'Speech 2.6 HD' },
+    { id: 'whisper-1', label: 'Whisper' },
   ],
   music: [
     { id: 'chirp-fenix', label: 'Suno V5.5' },

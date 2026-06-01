@@ -7,6 +7,7 @@ const DMX_API_KEY = process.env.DMX_API_KEY;
 const DMX_BASE_URL = 'https://www.dmxapi.cn';
 const DASHSCOPE_API_KEY = process.env.DASHSCOPE_API_KEY;
 const DASHSCOPE_BASE_URL = 'https://dashscope.aliyuncs.com';
+const MAX_POLL_ATTEMPTS = 80;
 
 type AspectRatio = '9:16' | '16:9' | '1:1' | '4:3' | '3:4' | '21:9' | 'adaptive';
 
@@ -534,7 +535,7 @@ async function pollWithTimeout(
   const startTime = Date.now();
   let attempt = 0;
 
-  while (Date.now() - startTime < maxTotalTime) {
+  while (Date.now() - startTime < maxTotalTime && attempt < MAX_POLL_ATTEMPTS) {
     const delay = Math.min(5000 * Math.pow(1.2, attempt), 15000);
     await new Promise((r) => setTimeout(r, delay));
     attempt++;

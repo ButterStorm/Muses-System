@@ -57,6 +57,21 @@ describe('r2Storage', () => {
     expect(client.send).toHaveBeenCalled();
   });
 
+  it('allows svg uploads for vector image generation', async () => {
+    const client = new S3Client({});
+    (jest.mocked(client.send) as jest.Mock).mockResolvedValueOnce({});
+    mockedS3Client.mockReturnValueOnce(client);
+
+    const url = await uploadBuffer(Buffer.from('<svg />').buffer, 'image/svg+xml', 'svg');
+
+    expect(url).toMatch(/^https:\/\/assets\.example\.com\/uploads\/.+\.svg$/);
+    expect(mockedPutObjectCommand).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ContentType: 'image/svg+xml',
+      })
+    );
+  });
+
   it('fails fast when the R2 account id is not configured', async () => {
     delete process.env.R2_ACCOUNT_ID;
 

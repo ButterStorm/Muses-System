@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Handle, Position, NodeProps, NodeResizer, useReactFlow } from '@xyflow/react';
-import { Maximize2, FileText } from 'lucide-react';
+import { Maximize2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import TextModal from '../modals/TextModal';
@@ -57,7 +57,7 @@ const TextNode = ({ data, id, selected }: NodeProps) => {
         />
 
         <div className="relative flex-1 overflow-hidden">
-          <div className="prose prose-sm max-w-none text-gray-700 leading-relaxed overflow-y-auto h-full custom-scrollbar nodrag nowheel">
+          <div className="prose prose-sm max-w-none text-gray-700 leading-relaxed overflow-y-auto h-full node-scrollbar-hidden nodrag nowheel">
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
               components={{
@@ -94,17 +94,6 @@ const TextNode = ({ data, id, selected }: NodeProps) => {
           className="!w-2 !h-2 !bg-blue-300 !border-0"
         />
       </div>
-
-      <style dangerouslySetInnerHTML={{
-        __html: `
-        .custom-scrollbar::-webkit-scrollbar {
-          display: none;
-        }
-        .custom-scrollbar {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
-        }
-      `}} />
 
       <TextModal
         isOpen={isModalOpen}

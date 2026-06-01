@@ -8,10 +8,11 @@ import { creditErrorResponse, withCreditBilling } from '@/lib/credits';
 const DMX_API_KEY = process.env.DMX_API_KEY;
 const DMX_BASE_URL = 'https://www.dmxapi.cn';
 const GPT_IMAGE_MODEL = 'gpt-image-2';
+const RECRAFT_VECTOR_MODEL = 'recraft-v4.1-pro-vector';
 
 // 输入验证 schema
 const ImageGenerationSchema = z.object({
-  model: z.enum(['doubao-seedream-5.0-lite', 'gemini-2.5-flash-image', 'gemini-3-pro-image', 'gpt-image-2']),
+  model: z.enum(['recraft-v4.1-pro-vector', 'doubao-seedream-5.0-lite', 'gemini-2.5-flash-image', 'gemini-3-pro-image', 'gpt-image-2']),
   prompt: z.string().min(1).max(4000),
   size: z.enum(['1K', '2K', '4K', '1024x1024', '1024x1536', '1536x1024']).default('2K'),
   aspectRatio: z.enum(['1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9']).default('1:1'),
@@ -48,7 +49,9 @@ export async function POST(request: NextRequest) {
       async () => {
         let result: string | string[];
 
-        if (model.startsWith('doubao-seedream')) {
+        if (model === RECRAFT_VECTOR_MODEL) {
+          result = await generateRecraftVector(prompt);
+        } else if (model.startsWith('doubao-seedream')) {
           result = await generateSeedream5(prompt, size, images);
         } else if (model.startsWith('gemini-')) {
           const geminiModelMap: Record<string, string> = {
@@ -227,6 +230,41 @@ async function editGptImage(
   return await extractGptImageResults(response.data);
 }
 
+async function generateRecraftVector(prompt: string): Promise<string | string[]> {
+  const response = await axios.post(
+    `${DMX_BASE_URL}/v1/chat/completions`,
+    {
+      model: RECRAFT_VECTOR_MODEL,
+      messages: [{ role: 'user', content: prompt }],
+      modalities: ['image'],
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${DMX_API_KEY}`,
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      timeout: 300000,
+    }
+  );
+
+  const images = response.data?.choices?.[0]?.message?.images || [];
+  const urls: string[] = [];
+
+  for (const image of images) {
+    const imageUrl = image?.image_url?.url;
+    if (typeof imageUrl !== 'string') continue;
+    const uploadedUrl = await uploadDataUrlImage(imageUrl);
+    urls.push(uploadedUrl);
+  }
+
+  if (urls.length === 0) {
+    throw new Error('图片生成失败：响应中未包含 images 字段');
+  }
+
+  return urls.length === 1 ? urls[0] : urls;
+}
+
 async function extractGptImageResults(data: unknown): Promise<string | string[]> {
   const items = (data as { data?: Array<{ b64_json?: string; url?: string }> })?.data;
   if (!items || items.length === 0) {
@@ -322,9 +360,23 @@ function normalizeGptImageSize(size: string): string {
 }
 
 function mimeTypeToExtension(mimeType: string): string {
+  if (mimeType === 'image/svg+xml') return 'svg';
   if (mimeType === 'image/jpeg') return 'jpg';
   if (mimeType === 'image/webp') return 'webp';
+  if (mimeType === 'image/gif') return 'gif';
   return 'png';
+}
+
+async function uploadDataUrlImage(dataUrl: string): Promise<string> {
+  const match = dataUrl.match(/^data:([^;]+);base64,([\s\S]*)$/);
+  if (!match) {
+    throw new Error('图片生成失败：返回的图片不是 base64 data URL');
+  }
+
+  const mimeType = match[1];
+  const payload = match[2];
+  const buffer = Buffer.from(payload, 'base64');
+  return await uploadBuffer(toArrayBuffer(buffer), mimeType, mimeTypeToExtension(mimeType));
 }
 
 function toArrayBuffer(buffer: Buffer): ArrayBuffer {

@@ -139,13 +139,13 @@ const CanvasFloatingPanel: React.FC<CanvasFloatingPanelProps> = ({ onAddNode }) 
               </button>
 
               <button
-                onClick={() => onAddNode('imageInputNode', '多模态参考')}
+                onClick={() => onAddNode('imageInputNode', '参考素材')}
                 className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-gray-100/80 transition-all text-gray-600 hover:text-gray-900 group"
               >
                 <div className="w-7 h-7 rounded-lg bg-purple-50 flex items-center justify-center group-hover:bg-purple-100 transition-colors">
                   <ImagePlus size={13} className="text-purple-500" />
                 </div>
-                <span className="text-xs font-semibold">多模态参考</span>
+                <span className="text-xs font-semibold">参考素材</span>
               </button>
 
             </div>

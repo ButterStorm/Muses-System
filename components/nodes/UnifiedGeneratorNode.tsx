@@ -6,11 +6,11 @@ import { ChevronDown, Play, Sparkles, Type, Image, Video, Music, Headphones } fr
 import { generateTextWithDmx } from '@/services/TextService';
 import { generateImageWithDmx } from '@/services/ImageService';
 import { generateVideoKling, generateVideoDoubao, generateVideoSeedance20, generateVideoHappyHorse } from '@/services/VideoService';
-import { textToSpeech } from '@/services/AudioService';
+import { textToSpeech, transcribeAudioUrl } from '@/services/AudioService';
 import { generateMusicInspiration, generateMusicCustom } from '@/services/MusicService';
 import { getModelLabel } from '@/lib/modelCatalog';
 import { TYPE_CONFIG, MODELS } from './unified-types';
-import type { NodeType, MusicGenerationMode, UnifiedNodeData } from './unified-types';
+import type { AudioResponseFormat, NodeType, MusicGenerationMode, UnifiedNodeData } from './unified-types';
 import ConfigPanel from './ConfigPanel';
 
 const TYPE_ICONS: Record<NodeType, React.ReactNode> = {
@@ -20,6 +20,33 @@ const TYPE_ICONS: Record<NodeType, React.ReactNode> = {
     audio: <Headphones size={13} />,
     music: <Music size={13} />,
 };
+
+const RESULT_NODE_STYLE: Record<string, React.CSSProperties> = {
+    textNode: { width: 288, height: 150 },
+    imageNode: { width: 288 },
+    videoNode: { width: 288, height: 180 },
+    audioNode: { width: 288 },
+    musicNode: { width: 288 },
+};
+
+interface MediaMetadata {
+    url: string;
+    name: string;
+    type: string;
+}
+
+function getMediaMetadata(data: Record<string, unknown>, key: string): MediaMetadata[] {
+    const value = data[key];
+    if (!Array.isArray(value)) return [];
+
+    return value.filter((item): item is MediaMetadata => (
+        !!item &&
+        typeof item === 'object' &&
+        typeof (item as MediaMetadata).url === 'string' &&
+        typeof (item as MediaMetadata).name === 'string' &&
+        typeof (item as MediaMetadata).type === 'string'
+    ));
+}
 
 const UnifiedGeneratorNode = ({ id, data }: NodeProps) => {
     const { addNodes, addEdges, getNode, getEdges, getNodes, setNodes } = useReactFlow();
@@ -33,6 +60,7 @@ const UnifiedGeneratorNode = ({ id, data }: NodeProps) => {
             count: (data.count as number) || 1,
             duration: (data.duration as number) || 5,
             voice: (data.voice as string) || 'male-qn-qingse',
+            audioResponseFormat: (data.audioResponseFormat as AudioResponseFormat) || 'json',
             musicMode: (data.musicMode as MusicGenerationMode) || 'inspiration',
             instrumental: (data.instrumental as boolean) || false,
             songTitle: (data.songTitle as string) || '',
@@ -62,6 +90,7 @@ const UnifiedGeneratorNode = ({ id, data }: NodeProps) => {
                             count: nodeData.count,
                             duration: nodeData.duration,
                             voice: nodeData.voice,
+                            audioResponseFormat: nodeData.audioResponseFormat,
                             musicMode: nodeData.musicMode,
                             instrumental: nodeData.instrumental,
                             songTitle: nodeData.songTitle,
@@ -72,7 +101,7 @@ const UnifiedGeneratorNode = ({ id, data }: NodeProps) => {
                 return node;
             })
         );
-    }, [nodeData.label, nodeData.type, nodeData.model, nodeData.count, nodeData.duration, nodeData.voice, nodeData.musicMode, nodeData.instrumental, nodeData.songTitle, nodeData.songTags, id, setNodes]);
+    }, [nodeData.label, nodeData.type, nodeData.model, nodeData.count, nodeData.duration, nodeData.voice, nodeData.audioResponseFormat, nodeData.musicMode, nodeData.instrumental, nodeData.songTitle, nodeData.songTags, id, setNodes]);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -95,6 +124,7 @@ const UnifiedGeneratorNode = ({ id, data }: NodeProps) => {
             type,
             model: MODELS[type][0],
             label: TYPE_CONFIG[type].label,
+            ...(type === 'audio' ? { audioResponseFormat: 'json' as AudioResponseFormat } : {}),
             ...(type === 'video' ? { duration: 5 } : {}),
         }));
         setIsTypeMenuOpen(false);
@@ -118,6 +148,8 @@ const UnifiedGeneratorNode = ({ id, data }: NodeProps) => {
             const collectedImageUrls: string[] = [];
             const collectedVideoUrls: string[] = [];
             const collectedAudioUrls: string[] = [];
+            const collectedVideoFiles: MediaMetadata[] = [];
+            const collectedAudioFiles: MediaMetadata[] = [];
 
             for (const node of sourceNodes) {
                 const d = node.data as Record<string, unknown>;
@@ -148,6 +180,11 @@ const UnifiedGeneratorNode = ({ id, data }: NodeProps) => {
                         collectedVideoUrls.push(videoUrl);
                     }
                 }
+                for (const videoFile of getMediaMetadata(d, 'videoFiles')) {
+                    if (!collectedVideoFiles.some((item) => item.url === videoFile.url)) {
+                        collectedVideoFiles.push(videoFile);
+                    }
+                }
 
                 const nodeAudioUrls = Array.isArray(d.audioUrls)
                     ? d.audioUrls.filter((v): v is string => typeof v === 'string' && !!v)
@@ -159,6 +196,11 @@ const UnifiedGeneratorNode = ({ id, data }: NodeProps) => {
                 for (const audioUrl of [...nodeAudioUrls, ...fallbackAudio]) {
                     if (!collectedAudioUrls.includes(audioUrl)) {
                         collectedAudioUrls.push(audioUrl);
+                    }
+                }
+                for (const audioFile of getMediaMetadata(d, 'audioFiles')) {
+                    if (!collectedAudioFiles.some((item) => item.url === audioFile.url)) {
+                        collectedAudioFiles.push(audioFile);
                     }
                 }
             }
@@ -215,7 +257,22 @@ const UnifiedGeneratorNode = ({ id, data }: NodeProps) => {
                         }
                         break;
                     case 'audio':
-                        generationResults = await textToSpeech(promptToUse, { model: nodeData.model, voice: nodeData.voice });
+                        if (nodeData.model === 'whisper-1') {
+                            const mediaUrl = collectedAudioUrls[0] || collectedVideoUrls[0];
+                            if (!mediaUrl) {
+                                throw new Error('Whisper 需要连接一个音频或视频输入节点');
+                            }
+                            const mediaMetadata = collectedAudioFiles.find((item) => item.url === mediaUrl)
+                                || collectedVideoFiles.find((item) => item.url === mediaUrl);
+                            generationResults = await transcribeAudioUrl(mediaUrl, {
+                                model: 'whisper-1',
+                                responseFormat: nodeData.audioResponseFormat,
+                                fileName: mediaMetadata?.name,
+                                mimeType: mediaMetadata?.type,
+                            });
+                        } else {
+                            generationResults = await textToSpeech(promptToUse, { model: nodeData.model, voice: nodeData.voice });
+                        }
                         break;
                     case 'music': {
                         const apiMv = nodeData.model === 'suno-v5' ? 'chirp-crow' : nodeData.model;
@@ -260,8 +317,13 @@ const UnifiedGeneratorNode = ({ id, data }: NodeProps) => {
                             newNodeData.videoUrl = singleResult;
                             break;
                         case 'audio':
-                            newNodeType = 'audioNode';
-                            newNodeData.audioUrl = singleResult;
+                            if (nodeData.model === 'whisper-1') {
+                                newNodeType = 'textNode';
+                                newNodeData.output = singleResult;
+                            } else {
+                                newNodeType = 'audioNode';
+                                newNodeData.audioUrl = singleResult;
+                            }
                             break;
                         case 'music':
                             newNodeType = 'musicNode';
@@ -275,15 +337,17 @@ const UnifiedGeneratorNode = ({ id, data }: NodeProps) => {
                         id: newNodeId,
                         type: newNodeType,
                         position,
+                        targetPosition: Position.Left,
+                        sourcePosition: Position.Right,
                         data: newNodeData,
-                        ...(newNodeType === 'textNode' ? { style: { width: 288, height: 150 } } : {}),
-                        ...(newNodeType === 'videoNode' ? { style: { width: 288, height: 180 } } : {}),
+                        ...(RESULT_NODE_STYLE[newNodeType] ? { style: RESULT_NODE_STYLE[newNodeType] } : {}),
                     });
 
                     addEdges({
                         id: `e-${id}-${newNodeId}`,
                         source: id,
                         target: newNodeId,
+                        type: 'smoothstep',
                         animated: true,
                         style: { stroke: '#94a3b8', strokeWidth: 2 },
                     });
@@ -454,11 +518,10 @@ const UnifiedGeneratorNode = ({ id, data }: NodeProps) => {
                                     {[0, 1, 2, 3, 4].map((i) => (
                                         <span
                                             key={i}
-                                            className="w-[3px] rounded-full"
+                                            className="wave-bar w-[3px] rounded-full"
                                             style={{
                                                 backgroundColor: accent,
-                                                height: '12px',
-                                                animation: `waveBar 1.2s ease-in-out ${i * 0.1}s infinite`,
+                                                animationDelay: `${i * 0.1}s`,
                                             }}
                                         />
                                     ))}
@@ -485,14 +548,6 @@ const UnifiedGeneratorNode = ({ id, data }: NodeProps) => {
             {/* 连接点 */}
             <Handle type="source" position={Position.Right} className="!w-2 !h-2 !-right-1 !bg-slate-300 !border-2 !border-white !shadow-sm !top-8" />
 
-            {/* 加载动画 keyframes */}
-            <style dangerouslySetInnerHTML={{
-                __html: `
-                @keyframes waveBar {
-                    0%, 40%, 100% { height: 4px; opacity: 0.4; }
-                    20% { height: 14px; opacity: 1; }
-                }
-            `}} />
         </div>
     );
 };

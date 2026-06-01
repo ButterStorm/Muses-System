@@ -144,3 +144,48 @@
 .animate-color-shift-3 {
   animation: colorShift3 45s ease-in-out infinite;
 }
+
+.node-scrollbar-hidden {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.node-scrollbar-hidden::-webkit-scrollbar {
+  display: none;
+}
+
+.node-scrollbar-thin::-webkit-scrollbar {
+  width: 4px;
+}
+
+.node-scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.node-scrollbar-thin::-webkit-scrollbar-thumb {
+  background: #f1f5f9;
+  border-radius: 10px;
+}
+
+.node-scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: #e2e8f0;
+}
+
+.wave-bar {
+  height: 12px;
+  animation: waveBar 1.2s ease-in-out infinite;
+}
+
+@keyframes waveBar {
+  0%,
+  40%,
+  100% {
+    height: 4px;
+    opacity: 0.4;
+  }
+
+  20% {
+    height: 14px;
+    opacity: 1;
+  }
+}

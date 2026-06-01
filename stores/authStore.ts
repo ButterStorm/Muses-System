@@ -16,6 +16,10 @@ interface AuthState {
   resetPasswordEmail: (email: string) => Promise<{ error: string | null }>;
 }
 
+function getErrorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error ? error.message : fallback;
+}
+
 // Register auth state listener once at module level
 if (typeof window !== 'undefined') {
   supabase.auth.onAuthStateChange((event, session) => {
@@ -60,9 +64,9 @@ export const useAuthStore = create<AuthState>((set) => ({
         });
       }
       return { error: null };
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Signin exception:', err);
-      return { error: err?.message || '登录失败，请检查网络连接' };
+      return { error: getErrorMessage(err, '登录失败，请检查网络连接') };
     }
   },
 
@@ -98,12 +102,13 @@ export const useAuthStore = create<AuthState>((set) => ({
         });
       }
       return { error: null };
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Signup exception:', err);
-      if (err.message?.includes('fetch')) {
+      const message = getErrorMessage(err, '注册失败，请检查网络连接');
+      if (message.includes('fetch')) {
         return { error: '无法连接到服务器，请检查：1. 是否开启 VPN/代理 2. 是否被广告拦截插件阻止 3. 网络连接是否正常' };
       }
-      return { error: err?.message || '注册失败，请检查网络连接' };
+      return { error: message };
     }
   },
 
@@ -123,8 +128,8 @@ export const useAuthStore = create<AuthState>((set) => ({
         return { error: error.message };
       }
       return { error: null };
-    } catch (err: any) {
-      return { error: err?.message || '修改密码失败' };
+    } catch (err: unknown) {
+      return { error: getErrorMessage(err, '修改密码失败') };
     }
   },
 
@@ -137,8 +142,8 @@ export const useAuthStore = create<AuthState>((set) => ({
         return { error: error.message };
       }
       return { error: null };
-    } catch (err: any) {
-      return { error: err?.message || '发送重置邮件失败' };
+    } catch (err: unknown) {
+      return { error: getErrorMessage(err, '发送重置邮件失败') };
     }
   },
 
@@ -162,7 +167,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         isAuthenticated: true,
         isLoading: false
       });
-    } catch (err) {
+    } catch {
       await supabase.auth.signOut().catch(() => {});
       set({
         user: null,

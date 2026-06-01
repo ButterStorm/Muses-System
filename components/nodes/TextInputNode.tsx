@@ -44,7 +44,7 @@ const TextInputNode = ({ id, data, selected }: NodeProps) => {
                     onTouchStart={(e) => e.stopPropagation()}
                     onTouchMove={(e) => e.stopPropagation()}
                     placeholder="输入内容..."
-                    className="w-full h-full bg-transparent border-none focus:ring-0 text-sm text-gray-700 leading-relaxed resize-none p-0 nodrag nowheel nopan custom-scrollbar overflow-y-auto"
+                    className="w-full h-full bg-transparent border-none focus:ring-0 text-sm text-gray-700 leading-relaxed resize-none p-0 nodrag nowheel nopan node-scrollbar-thin overflow-y-auto"
                     style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}
                 />
             </div>
@@ -54,23 +54,6 @@ const TextInputNode = ({ id, data, selected }: NodeProps) => {
                 position={Position.Right}
                 className="!w-2 !h-2 !bg-gray-300 !border-0 hover:!bg-blue-400 transition-colors !top-1/2"
             />
-
-            <style dangerouslySetInnerHTML={{
-                __html: `
-                .custom-scrollbar::-webkit-scrollbar {
-                    width: 4px;
-                }
-                .custom-scrollbar::-webkit-scrollbar-track {
-                    background: transparent;
-                }
-                .custom-scrollbar::-webkit-scrollbar-thumb {
-                    background: #f1f5f9;
-                    border-radius: 10px;
-                }
-                .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-                    background: #e2e8f0;
-                }
-            `}} />
         </div>
     );
 };

@@ -12,6 +12,12 @@ describe('text generation models', () => {
     expect(MODELS.image).toContain('gpt-image-2');
   });
 
+  it('includes recraft vector in image models and whisper in audio models', () => {
+    expect(MODELS.image[0]).toBe('doubao-seedream-5.0-lite');
+    expect(MODELS.image).toContain('recraft-v4.1-pro-vector');
+    expect(MODELS.audio).toContain('whisper-1');
+  });
+
   it('uses doubao seed 2.0 lite instead of seed 1.8 for text generation', () => {
     expect(MODELS.text).toContain('doubao-seed-2-0-lite-260215');
     expect(MODELS.text).not.toContain('doubao-seed-1-8-251228');

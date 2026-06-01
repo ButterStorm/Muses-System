@@ -5,6 +5,7 @@ export const MAX_UPLOAD_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 export const ALLOWED_UPLOAD_MIME_TYPES: string[] = [
   'image/jpeg',
   'image/png',
+  'image/svg+xml',
   'image/webp',
   'image/gif',
   'audio/mpeg',

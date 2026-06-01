@@ -24,6 +24,9 @@ export interface TextToSpeechOptions {
 export interface SpeechToTextOptions {
   model?: 'whisper-1';
   language?: string;
+  responseFormat?: 'json' | 'text' | 'srt' | 'verbose_json' | 'vtt' | 'diarized_json';
+  fileName?: string;
+  mimeType?: string;
 }
 
 /**
@@ -75,6 +78,7 @@ export const speechToText = async (
     const formData = new FormData();
     formData.append('file', audioFile);
     formData.append('model', options.model || 'whisper-1');
+    formData.append('response_format', options.responseFormat || 'json');
     if (options.language) {
       formData.append('language', options.language);
     }
@@ -88,6 +92,33 @@ export const speechToText = async (
     return response.data?.text || '';
   } catch (error) {
     console.error('[STT] 语音转文字失败:', error);
+    if (axios.isAxiosError(error)) {
+      const data = error.response?.data as AudioError | undefined;
+      const message = data?.error || error.message || '语音转文字失败';
+      throw new Error(message);
+    }
+    const message = error instanceof Error ? error.message : '语音转文字失败';
+    throw new Error(message);
+  }
+};
+
+export const transcribeAudioUrl = async (
+  audioUrl: string,
+  options: SpeechToTextOptions = {}
+): Promise<string> => {
+  try {
+    const response = await axiosClient.post<SpeechToTextResponse>('/audio/transcribe', {
+      audioUrl,
+      model: options.model || 'whisper-1',
+      responseFormat: options.responseFormat || 'json',
+      language: options.language,
+      fileName: options.fileName,
+      mimeType: options.mimeType,
+    });
+
+    return response.data?.text || '';
+  } catch (error) {
+    console.error('[STT] 音频 URL 转文字失败:', error);
     if (axios.isAxiosError(error)) {
       const data = error.response?.data as AudioError | undefined;
       const message = data?.error || error.message || '语音转文字失败';

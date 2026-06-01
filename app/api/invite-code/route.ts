@@ -1,22 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { createRateLimiter } from '@/lib/rateLimit';
-import { CreditBillingError, getAuthenticatedUserId } from '@/lib/credits';
+import { CreditBillingError, getAuthenticatedUserId, getServerSupabaseClient } from '@/lib/credits';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const inviteCodeLimiter = createRateLimiter({ limit: 8, windowMs: 10 * 60 * 1000 });
 const INVITE_ACTIVATION_CREDITS = 1000;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-function getServerClient() {
-  if (!supabaseUrl || !supabaseServiceKey) {
-    throw new Error('Supabase 配置错误');
-  }
-  return createClient(supabaseUrl, supabaseServiceKey, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
-}
 
 export async function POST(request: NextRequest) {
   try {
@@ -48,7 +36,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: '无权查询' }, { status: 403 });
       }
 
-      const supabase = getServerClient();
+      const supabase = getServerSupabaseClient();
       const { data: inviteCode } = await supabase
         .from('invite_codes')
         .select('activated_at, duration_days')
@@ -85,7 +73,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const supabase = getServerClient();
+    const supabase = getServerSupabaseClient();
 
     const { data: inviteCode, error: queryError } = await supabase
       .from('invite_codes')
