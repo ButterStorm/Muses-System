@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { ArrowRight, Globe, Loader2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Globe, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useScrollAnimation } from '@/hooks/useScrollAnimation';
 import { useAuthStore } from '@/stores/authStore';
@@ -14,7 +14,7 @@ const translations = {
     nav: { home: 'Home', canvas: 'Canvas', works: 'Works', timeline: 'Timeline', login: 'LOGIN' },
     hero: {
       badge: 'AI Agent Creation Platform',
-      title: 'Build AI Dream on a Visual Canvas',
+      title: 'Build Concrete Beauty on a Visual AI Canvas',
       desc: 'Create text, images, video, audio, music, and agent tasks in one flow-based workspace. MusesAOS connects multiple models, sandbox execution, and project history so teams can turn ideas into production-ready assets faster.'
     },
     featured: {
@@ -45,11 +45,11 @@ const translations = {
     nav: { home: '首页', canvas: '画布', works: '作品', timeline: '时间线', login: '登录' },
     hero: {
       badge: 'AI Agent 创作平台',
-      title: '在可视化画布上构建 AI 工作流',
-      desc: '把文本、图像、视频、音频、音乐和 Agent 任务放进同一个流程画布。MusesAOS 连接多模型生成、沙箱执行和项目历史，帮助团队更快把想法变成可交付内容。'
+      title: '在可视化AI画布，构建具体的美',
+      desc: '把文本、图像、视频、音频、音乐和 Agent 任务放进同一个流程画布。MusesSystem 连接多模型生成、沙箱执行和项目管理，帮助团队更快把想法通过 AI 变成具体的美。'
     },
     featured: {
-      title: '核心创作工作流',
+      title: '核心创作',
       desc: '面向多模态生成、可视化编排和 Agent 辅助制作的一体化工作区。'
     },
     project1: {
@@ -69,7 +69,7 @@ const translations = {
       kicker: '工作区就绪',
       title: '开始使用 MusesAOS 构建',
       desc: '打开画布，连接生成节点，让 Agent 协助执行复杂的创作流程。',
-      btn: '打开画布'
+      btn: '开始创作'
     }
   }
 };
@@ -255,7 +255,8 @@ async function getInviteAuthHeaders(): Promise<Record<string, string>> {
 }
 
 const LandingPage: React.FC = () => {
-  const [lang, setLang] = useState<'en' | 'zh'>('en');
+  const [lang, setLang] = useState<'en' | 'zh'>('zh');
+  const [activeChapterIndex, setActiveChapterIndex] = useState(0);
   const t = translations[lang];
 
   const heroSection = useScrollAnimation();
@@ -272,18 +273,29 @@ const LandingPage: React.FC = () => {
     const chapter = chapters[chapterIndex];
 
     return (
-      <div className={`bg-gray-900/95 rounded-2xl overflow-hidden transition-all duration-700 ${extraClassName}`}>
+      <div className={`relative overflow-hidden rounded-[1.75rem] border border-white/10 bg-black transition-all duration-700 ${extraClassName}`}>
         <div className="relative aspect-[16/10] md:aspect-[16/9] overflow-hidden">
           <img
             src={chapter.image}
             alt={chapter.alt}
-            className="w-full h-full object-contain"
+            className="h-full w-full object-cover"
           />
-          <div className="absolute inset-0 ring-1 ring-inset ring-white/8 rounded-2xl pointer-events-none"></div>
+          <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),transparent_24%,rgba(0,0,0,0.10))]"></div>
+          <div className="absolute inset-0 rounded-[1.75rem] ring-1 ring-inset ring-white/10 pointer-events-none"></div>
         </div>
       </div>
     );
   };
+
+  const goToPreviousChapter = () => {
+    setActiveChapterIndex((current) => (current - 1 + chapters.length) % chapters.length);
+  };
+
+  const goToNextChapter = () => {
+    setActiveChapterIndex((current) => (current + 1) % chapters.length);
+  };
+
+  const activeChapter = chapters[activeChapterIndex];
 
   return (
     <div className="min-h-screen bg-black text-white overflow-x-hidden relative">
@@ -390,39 +402,65 @@ const LandingPage: React.FC = () => {
               </p>
             </div>
 
-            <div className="space-y-20 lg:space-y-0">
-              {chapters.map((chapter, index) => (
-                <article
-                  key={chapter.title}
-                  className="lg:grid lg:grid-cols-[minmax(0,0.82fr)_minmax(0,1.18fr)] lg:gap-12 lg:min-h-[120vh]"
-                >
-                  <div className="flex items-center lg:py-28">
-                    <div className="max-w-xl">
-                      <p className="text-xs tracking-[0.28em] uppercase text-gray-500 mb-5">
-                        {`Chapter 0${index + 1}`}
-                      </p>
-                      <h3 className="text-3xl md:text-5xl font-medium text-white mb-5">
-                        {chapter.title}
-                      </h3>
-                      <p className="text-lg md:text-xl text-gray-400 leading-relaxed mb-8">
-                        {chapter.desc}
-                      </p>
-                      <button className="flex items-center space-x-2 text-white hover:text-green-400 transition-colors">
-                        <span>{t.common.learnMore}</span>
-                        <ArrowRight className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
+            <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.03] p-5 sm:p-7 lg:p-9 shadow-[0_30px_90px_rgba(0,0,0,0.35)]">
+              <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_20%,rgba(87,255,183,0.10),transparent_26%),radial-gradient(circle_at_82%_18%,rgba(132,180,255,0.13),transparent_24%)]"></div>
 
-                  <div className="mt-10 lg:mt-0">
-                    <div className="lg:sticky lg:top-24 lg:min-h-screen lg:flex lg:items-center">
-                      <div className="w-full">
-                        {renderProjectCard(index, 'shadow-[0_30px_80px_rgba(0,0,0,0.35)]')}
-                      </div>
-                    </div>
-                  </div>
-                </article>
-              ))}
+              <article className="relative z-10 grid gap-8 lg:grid-cols-[minmax(0,0.82fr)_minmax(0,1.18fr)] lg:gap-12 lg:items-center">
+                <div className="max-w-xl">
+                  <p className="text-xs tracking-[0.28em] uppercase text-gray-500 mb-5">
+                    {`Chapter 0${activeChapterIndex + 1}`}
+                  </p>
+                  <h3 className="text-3xl md:text-5xl font-medium text-white mb-5">
+                    {activeChapter.title}
+                  </h3>
+                  <p className="text-lg md:text-xl text-gray-400 leading-relaxed mb-8">
+                    {activeChapter.desc}
+                  </p>
+                  <Link href="/canvas" className="flex items-center space-x-2 text-white hover:text-green-400 transition-colors">
+                    <span>{t.common.learnMore}</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </Link>
+                </div>
+
+                <div className="relative">
+                  {renderProjectCard(activeChapterIndex, 'shadow-[0_30px_80px_rgba(0,0,0,0.35)]')}
+                </div>
+              </article>
+
+              <div className="relative z-10 mt-8 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-2">
+                  {chapters.map((chapter, index) => (
+                    <button
+                      key={chapter.title}
+                      type="button"
+                      aria-label={`Chapter 0${index + 1}`}
+                      onClick={() => setActiveChapterIndex(index)}
+                      className={`h-2.5 rounded-full transition-all ${
+                        index === activeChapterIndex ? 'w-9 bg-white' : 'w-2.5 bg-white/25 hover:bg-white/45'
+                      }`}
+                    />
+                  ))}
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    aria-label="Previous chapter"
+                    onClick={goToPreviousChapter}
+                    className="grid h-11 w-11 place-items-center rounded-full border border-white/15 bg-white/5 text-white transition-colors hover:bg-white hover:text-black"
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Next chapter"
+                    onClick={goToNextChapter}
+                    className="grid h-11 w-11 place-items-center rounded-full border border-white/15 bg-white text-black transition-colors hover:bg-green-300"
+                  >
+                    <ArrowRight className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </section>

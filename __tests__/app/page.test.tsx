@@ -108,4 +108,12 @@ describe('home page user menu', () => {
 
     expect(await screen.findByText('复制失败')).toBeInTheDocument();
   });
+
+  it('links the chapter learn more action to the authenticated canvas route', () => {
+    render(React.createElement(HomePage));
+
+    const learnMoreLink = screen.getByRole('link', { name: /了解更多/i });
+
+    expect(learnMoreLink).toHaveAttribute('href', '/canvas');
+  });
 });

@@ -15,6 +15,14 @@ const supportedModelGroups = Object.entries(MODEL_CATALOG).map(([type, models]) 
 
 export const timelineMilestones = [
   {
+    date: '2026 年 06 月 06 日',
+    title: '首页创作体验升级',
+    description: '重写首页品牌表达为“在可视化AI画布，构建具体的美”，将核心创作模块从纵向章节改为同一容器内的左右切换；优化图片铺满展示、CTA 文案和创作入口，了解更多统一指向画布并沿用登录校验。',
+    yearClass: 'bg-[#dcfce7] text-[#0f3f2c]',
+    markerClass: 'bg-[#10b981] border-[#059669] text-[#dcfce7]',
+    cardClass: 'hover:border-[#86efac] hover:shadow-[0_24px_60px_rgba(16,185,129,0.14)]',
+  },
+  {
     date: '2026 年 05 月 28 日',
     title: 'MusesAOS 紧急稳定性修复',
     description: '完成 Agent Runtime 异步清理、邀请码 check 鉴权与限流、沙箱文件 API 限流、ObjectURL 内存释放和 Gemini 日志脱敏；同时优化 Galaxy 隐藏态渲染、首次保存并发保护和首页产品定位。',
