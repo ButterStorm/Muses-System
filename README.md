@@ -16,7 +16,7 @@
 
 MusesAOS 是一个 AI Agent 多模态创作平台，核心目标是把“单次生成工具”升级为“可复用的 AI 内容生产工作流”。用户可以在可视化画布中组合文本、图像、视频、语音、音乐和 Agent 执行节点，将创意生产过程沉淀为项目、流程和资产。
 
-![MusesAOS 首页截图](public/screenshots/musesaos-home.png)
+![MusesAOS 首页截图](public/screenshots/缪斯系统首页.png)
 
 它不是简单聚合多个模型入口，而是围绕 **工作流、Agent、沙箱、资产和项目管理** 构建一个 AI 原生创作系统：
 

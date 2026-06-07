@@ -39,6 +39,17 @@ export default function TimelinePage() {
             </p>
           </div>
 
+          <div className="-mt-8 mb-16 flex justify-center">
+            <a
+              href="https://www.ai-magic.top"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center rounded-full border border-[oklch(0.84_0.006_260)] bg-white/80 px-5 py-3 text-sm font-semibold text-[oklch(0.20_0.018_276)] shadow-[0_12px_30px_rgba(64,58,82,0.08)] transition hover:-translate-y-0.5 hover:border-[#3b82f6] hover:text-[#2563eb] hover:shadow-[0_18px_40px_rgba(59,130,246,0.12)]"
+            >
+              关于我
+            </a>
+          </div>
+
           <div className="relative mx-auto max-w-5xl py-6">
             <div className="absolute bottom-8 left-4 top-8 w-px bg-[repeating-linear-gradient(to_bottom,#3b82f6_0_10px,transparent_10px_18px,#10b981_18px_28px,transparent_28px_36px,#ff5c7a_36px_46px,transparent_46px_54px)] opacity-55 md:left-1/2 md:-translate-x-px" />
 
