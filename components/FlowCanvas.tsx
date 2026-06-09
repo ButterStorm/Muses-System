@@ -29,7 +29,7 @@ import Toolbar, { ViewMode } from './Toolbar';
 import CanvasFloatingPanel from './CanvasFloatingPanel';
 import AgentPanel from './AgentPanel';
 import SandboxFilesPanel from './SandboxFilesPanel';
-import Galaxy from './Galaxy';
+import SpaceGlobe from './SpaceGlobe';
 import ErrorBoundary from './ErrorBoundary';
 import { useProjectStore } from '@/stores/projectStore';
 import { useAuthStore } from '@/stores/authStore';
@@ -496,16 +496,7 @@ const FlowInner: React.FC<FlowCanvasProps> = ({ projectId }) => {
             }}
           >
             {viewMode === 'space' && (
-              <Galaxy
-                hueShift={160}
-                density={1.2}
-                starSpeed={0.4}
-                speed={0.8}
-                glowIntensity={0.4}
-                twinkleIntensity={0.5}
-                rotationSpeed={0.05}
-                transparent={false}
-              />
+              <SpaceGlobe />
             )}
           </div>
         </div>
