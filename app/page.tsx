@@ -1,13 +1,15 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, ArrowRight, Globe, Loader2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Camera, Copy, Globe, Loader2, X } from 'lucide-react';
 import Link from 'next/link';
+import { createPortal } from 'react-dom';
 import { useScrollAnimation } from '@/hooks/useScrollAnimation';
 import { useAuthStore } from '@/stores/authStore';
 import ColorBends from '@/components/ColorBends';
 import Galaxy from '@/components/Galaxy';
 import { getCreditBalance } from '@/services/CreditService';
+import { uploadImage } from '@/lib/storage';
 
 const translations = {
   en: {
@@ -80,6 +82,13 @@ const UserNav: React.FC<{ className?: string }> = ({ className }) => {
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
   const [availableCredits, setAvailableCredits] = useState<number | null>(null);
   const [copyStatus, setCopyStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [profileName, setProfileName] = useState('');
+  const [profileAvatarUrl, setProfileAvatarUrl] = useState('');
+  const [draftName, setDraftName] = useState('');
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreviewUrl, setAvatarPreviewUrl] = useState('');
+  const [profileMessage, setProfileMessage] = useState('');
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
 
   useEffect(() => {
     checkAuth();
@@ -87,6 +96,16 @@ const UserNav: React.FC<{ className?: string }> = ({ className }) => {
 
   useEffect(() => {
     if (isAuthenticated && user?.id) {
+      getUserProfile(user.id)
+        .then((profile) => {
+          const nextName = profile?.display_name || '';
+          const nextAvatarUrl = profile?.avatar_url || user.user_metadata?.avatar_url || '';
+          setProfileName(nextName);
+          setDraftName(nextName);
+          setProfileAvatarUrl(nextAvatarUrl);
+        })
+        .catch(() => {});
+
       getInviteAuthHeaders()
         .then((authHeaders) => fetch('/api/invite-code', {
           method: 'POST',
@@ -102,8 +121,36 @@ const UserNav: React.FC<{ className?: string }> = ({ className }) => {
       getCreditBalance()
         .then((balance) => setAvailableCredits(balance?.available_points ?? null))
         .catch(() => setAvailableCredits(null));
+    } else {
+      setProfileName('');
+      setProfileAvatarUrl('');
+      setDraftName('');
+      setAvatarFile(null);
+      setAvatarPreviewUrl('');
+      setProfileMessage('');
     }
-  }, [isAuthenticated, user?.id]);
+  }, [isAuthenticated, user?.id, user?.user_metadata?.avatar_url]);
+
+  useEffect(() => {
+    if (!avatarFile) {
+      setAvatarPreviewUrl('');
+      return;
+    }
+
+    const objectUrl = URL.createObjectURL(avatarFile);
+    setAvatarPreviewUrl(objectUrl);
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [avatarFile]);
+
+  useEffect(() => {
+    if (!profileMessage) return;
+
+    const timeoutId = window.setTimeout(() => {
+      setProfileMessage('');
+    }, 3000);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [profileMessage]);
 
   const getRemainingDays = () => {
     if (!expiresAt) return null;
@@ -152,6 +199,54 @@ const UserNav: React.FC<{ className?: string }> = ({ className }) => {
     window.setTimeout(() => setCopyStatus('idle'), 1800);
   };
 
+  const avatarUrl = avatarPreviewUrl || profileAvatarUrl || user?.user_metadata?.avatar_url || '';
+  const displayInitial = (profileName || user?.email || 'U').trim()[0]?.toUpperCase() || 'U';
+
+  const handleAvatarChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setProfileMessage('请选择图片文件');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setProfileMessage('头像不能超过 5MB');
+      return;
+    }
+
+    setAvatarFile(file);
+    setProfileMessage('');
+  };
+
+  const saveProfile = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!user?.id || isSavingProfile) return;
+
+    setIsSavingProfile(true);
+    setProfileMessage('');
+
+    try {
+      const savedProfile = await updateUserProfile({
+        userId: user.id,
+        displayName: draftName.trim(),
+        currentAvatarUrl: profileAvatarUrl,
+        avatarFile,
+      });
+
+      setProfileName(savedProfile.display_name || '');
+      setDraftName(savedProfile.display_name || '');
+      setProfileAvatarUrl(savedProfile.avatar_url || '');
+      setAvatarFile(null);
+      setProfileMessage('已保存');
+    } catch (error) {
+      setProfileMessage(error instanceof Error ? error.message : '保存失败');
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center w-8 h-8">
@@ -182,70 +277,209 @@ const UserNav: React.FC<{ className?: string }> = ({ className }) => {
   return (
     <div className={`relative ${className || ''}`}>
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => {
+          setDraftName(profileName);
+          setAvatarFile(null);
+          setProfileMessage('');
+          setIsOpen(true);
+        }}
         className="flex items-center gap-2 text-gray-300 hover:text-white transition-colors"
       >
-        <div className="w-8 h-8 bg-black rounded-full flex items-center justify-center text-white text-sm font-bold border border-gray-600">
-          {user?.email?.[0].toUpperCase() || 'U'}
+        <div className="w-8 h-8 bg-black rounded-full flex items-center justify-center text-white text-sm font-bold border border-gray-600 overflow-hidden">
+          {avatarUrl ? (
+            <img src={avatarUrl} alt="用户头像" className="h-full w-full object-cover" />
+          ) : (
+            displayInitial
+          )}
         </div>
       </button>
 
-      {isOpen && (
-        <>
+      {isOpen && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
           <div
-            className="fixed inset-0 z-40"
+            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
             onClick={() => setIsOpen(false)}
           />
-          <div className="absolute left-0 top-full mt-2 w-40 bg-white rounded-xl shadow-lg border border-gray-200 py-2 z-50">
-            <div className="px-4 py-2 text-sm text-gray-500 flex items-center justify-between">
-              <span>ID</span>
-              <div className="flex items-center gap-2">
-                {copyStatus !== 'idle' && (
-                  <span className={`text-xs ${copyStatus === 'success' ? 'text-green-600' : 'text-red-500'}`}>
-                    {copyStatus === 'success' ? '已复制' : '复制失败'}
-                  </span>
+          <form
+            onSubmit={saveProfile}
+            className="relative w-full max-w-md overflow-hidden rounded-3xl border border-white/15 bg-zinc-950/95 p-6 text-white shadow-2xl shadow-black/50"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-semibold">个人资料</h2>
+                <p className="mt-1 text-sm text-gray-400">{user?.email}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsOpen(false)}
+                className="rounded-full p-2 text-gray-400 transition-colors hover:bg-white/10 hover:text-white"
+                aria-label="关闭"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="mt-6 flex items-center gap-4">
+              <div className="relative h-20 w-20 overflow-hidden rounded-2xl border border-white/15 bg-white/10">
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt="用户头像" className="h-full w-full object-cover" />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-2xl font-semibold">
+                    {displayInitial}
+                  </div>
                 )}
+              </div>
+              <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-medium text-gray-100 transition-colors hover:bg-white/15">
+                <Camera className="h-4 w-4" />
+                更换头像
+                <input type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
+              </label>
+            </div>
+
+            <label className="mt-5 block">
+              <span className="mb-2 block text-sm font-medium text-gray-300">名称</span>
+              <input
+                value={draftName}
+                onChange={(event) => setDraftName(event.target.value)}
+                maxLength={40}
+                className="w-full rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-base text-white outline-none transition-colors focus:border-white/40"
+              />
+            </label>
+
+            <div className="mt-5 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.06] text-sm">
+              <div className="flex items-center justify-between gap-4 border-b border-white/10 px-4 py-3 text-gray-300">
+                <span>ID</span>
+                <div className="flex items-center gap-2">
+                  {copyStatus !== 'idle' && (
+                    <span className={`text-xs ${copyStatus === 'success' ? 'text-emerald-300' : 'text-red-300'}`}>
+                      {copyStatus === 'success' ? '已复制' : '复制失败'}
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    title="复制用户ID"
+                    onClick={copyUserId}
+                    className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-gray-100 transition-colors hover:bg-white/10"
+                  >
+                    <Copy className="h-3.5 w-3.5" />
+                    复制
+                  </button>
+                </div>
+              </div>
+              <div className="flex items-center justify-between gap-4 border-b border-white/10 px-4 py-3 text-gray-300">
+                <span>有效期</span>
+                <span className="font-medium text-white">
+                  {getRemainingDays() || '未知'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-4 px-4 py-3 text-gray-300">
+                <span>积分</span>
+                <span className="font-medium text-white">
+                  {availableCredits ?? '未知'}
+                </span>
+              </div>
+            </div>
+
+            {profileMessage && (
+              <div className={`mt-4 rounded-2xl border px-4 py-3 text-sm ${profileMessage === '已保存' ? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-200' : 'border-red-400/30 bg-red-400/10 text-red-200'}`}>
+                {profileMessage}
+              </div>
+            )}
+
+            <div className="mt-6 flex items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  signOut();
+                  setIsOpen(false);
+                }}
+                className="rounded-2xl px-4 py-3 text-sm font-medium text-red-300 transition-colors hover:bg-red-500/10"
+              >
+                退出登录
+              </button>
+              <div className="flex items-center gap-3">
                 <button
                   type="button"
-                  title="复制用户ID"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    copyUserId();
-                  }}
-                  className="rounded-md px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100 hover:text-gray-950 transition-colors"
+                  onClick={() => setIsOpen(false)}
+                  className="rounded-2xl border border-white/15 px-5 py-3 text-sm font-medium text-gray-200 transition-colors hover:bg-white/10"
                 >
-                  复制
+                  取消
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingProfile}
+                  className="inline-flex min-w-20 items-center justify-center rounded-2xl bg-white px-5 py-3 text-sm font-semibold text-black transition-colors hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isSavingProfile ? <Loader2 className="h-4 w-4 animate-spin" /> : '保存'}
                 </button>
               </div>
             </div>
-            <div className="px-4 py-2 text-sm text-gray-500 flex items-center justify-between">
-              <span>有效期</span>
-              <span className="text-gray-800 font-medium">
-                {getRemainingDays() || '未知'}
-              </span>
-            </div>
-            <div className="px-4 py-2 text-sm text-gray-500 flex items-center justify-between">
-              <span>积分</span>
-              <span className="text-gray-800 font-medium">
-                {availableCredits ?? '未知'}
-              </span>
-            </div>
-            <div className="border-t border-gray-100 my-1" />
-            <button
-              onClick={() => {
-                signOut();
-                setIsOpen(false);
-              }}
-              className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
-            >
-              退出登录
-            </button>
-          </div>
-        </>
+          </form>
+        </div>,
+        document.body
       )}
     </div>
   );
 };
+
+type ProfileRow = {
+  display_name: string | null;
+  avatar_url: string | null;
+};
+
+async function getUserProfile(userId: string): Promise<ProfileRow | null> {
+  const { supabase } = await import('@/lib/supabase');
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('display_name, avatar_url')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
+}
+
+async function updateUserProfile({
+  userId,
+  displayName,
+  currentAvatarUrl,
+  avatarFile,
+}: {
+  userId: string;
+  displayName: string;
+  currentAvatarUrl: string;
+  avatarFile: File | null;
+}): Promise<ProfileRow> {
+  const { supabase } = await import('@/lib/supabase');
+  let avatarUrl = currentAvatarUrl;
+
+  if (avatarFile) {
+    avatarUrl = await uploadImage(avatarFile);
+  }
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .update({
+      display_name: displayName || null,
+      avatar_url: avatarUrl || null,
+    })
+    .eq('user_id', userId)
+    .select('display_name, avatar_url')
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message || '资料保存失败');
+  }
+
+  if (!data) {
+    throw new Error('资料不存在，请确认 profiles 初始化完成');
+  }
+
+  return data;
+}
 
 async function getInviteAuthHeaders(): Promise<Record<string, string>> {
   const { supabase } = await import('@/lib/supabase');
