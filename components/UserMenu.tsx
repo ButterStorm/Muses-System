@@ -12,6 +12,8 @@ export default function UserMenu() {
   const { user, isAuthenticated, isLoading, signOut, checkAuth } = useAuthStore();
   const [isOpen, setIsOpen] = useState(false);
   const [availableCredits, setAvailableCredits] = useState<number | null>(null);
+  const [profileName, setProfileName] = useState('');
+  const [profileAvatarUrl, setProfileAvatarUrl] = useState('');
 
   useEffect(() => {
     checkAuth();
@@ -20,6 +22,8 @@ export default function UserMenu() {
   useEffect(() => {
     if (!isAuthenticated) {
       setAvailableCredits(null);
+      setProfileName('');
+      setProfileAvatarUrl('');
       return;
     }
 
@@ -27,6 +31,24 @@ export default function UserMenu() {
       .then((balance) => setAvailableCredits(balance?.available_points ?? null))
       .catch(() => setAvailableCredits(null));
   }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !user?.id) {
+      setProfileName('');
+      setProfileAvatarUrl('');
+      return;
+    }
+
+    getUserProfile(user.id)
+      .then((profile) => {
+        setProfileName(profile?.display_name || '');
+        setProfileAvatarUrl(profile?.avatar_url || user.user_metadata?.avatar_url || '');
+      })
+      .catch(() => {
+        setProfileName('');
+        setProfileAvatarUrl(user.user_metadata?.avatar_url || '');
+      });
+  }, [isAuthenticated, user?.id, user?.user_metadata?.avatar_url]);
 
   const handleSignOut = async () => {
     await signOut();
@@ -54,17 +76,25 @@ export default function UserMenu() {
     );
   }
 
+  const displayName = profileName || user?.email?.split('@')[0] || '用户';
+  const avatarUrl = profileAvatarUrl || user?.user_metadata?.avatar_url || '';
+  const avatarInitial = displayName.trim()[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'U';
+
   return (
     <div className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors rounded-lg hover:bg-gray-100"
       >
-        <div className="w-8 h-8 bg-black rounded-full flex items-center justify-center text-white text-sm font-bold">
-          {user?.email?.[0].toUpperCase() || 'U'}
+        <div className="w-8 h-8 bg-black rounded-full flex items-center justify-center text-white text-sm font-bold overflow-hidden">
+          {avatarUrl ? (
+            <img src={avatarUrl} alt="用户头像" className="h-full w-full object-cover" />
+          ) : (
+            avatarInitial
+          )}
         </div>
         <span className="max-w-[120px] truncate hidden sm:inline">
-          {user?.email?.split('@')[0]}
+          {displayName}
         </span>
       </button>
 
@@ -77,7 +107,7 @@ export default function UserMenu() {
           <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-200 py-2 z-50">
             <div className="px-4 py-2 border-b border-gray-100">
               <p className="text-sm font-medium text-gray-900 truncate">
-                {user?.email}
+                {displayName}
               </p>
               <p className="text-xs text-gray-500 mt-1">
                 积分 {availableCredits ?? '未知'}
@@ -117,4 +147,24 @@ export default function UserMenu() {
       )}
     </div>
   );
+}
+
+type ProfileRow = {
+  display_name: string | null;
+  avatar_url: string | null;
+};
+
+async function getUserProfile(userId: string): Promise<ProfileRow | null> {
+  const { supabase } = await import('@/lib/supabase');
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('display_name, avatar_url')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
 }
