@@ -740,6 +740,20 @@ const LandingPage: React.FC = () => {
             </div>
           </div>
         </section>
+
+        <footer className="relative z-10 border-t border-white/10 px-4 py-8 sm:px-6 lg:px-8">
+          <div className="mx-auto flex max-w-7xl flex-col gap-4 text-sm text-gray-500 sm:flex-row sm:items-center sm:justify-between">
+            <p>© 2026 MusesSystem. All rights reserved.</p>
+            <div className="flex items-center gap-5">
+              <Link href="/terms" className="transition-colors hover:text-white">
+                服务条款
+              </Link>
+              <Link href="/privacy" className="transition-colors hover:text-white">
+                隐私条款
+              </Link>
+            </div>
+          </div>
+        </footer>
       </div>
     </div>
   );
