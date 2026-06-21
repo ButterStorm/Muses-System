@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, ArrowRight, Camera, Copy, Globe, Loader2, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Camera, Copy, CreditCard, Globe, Loader2, X } from 'lucide-react';
 import Link from 'next/link';
 import { createPortal } from 'react-dom';
 import { useScrollAnimation } from '@/hooks/useScrollAnimation';
@@ -89,6 +89,8 @@ const UserNav: React.FC<{ className?: string }> = ({ className }) => {
   const [avatarPreviewUrl, setAvatarPreviewUrl] = useState('');
   const [profileMessage, setProfileMessage] = useState('');
   const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [openingPackId, setOpeningPackId] = useState<'starter' | 'value' | null>(null);
+  const [paymentMessage, setPaymentMessage] = useState('');
 
   useEffect(() => {
     checkAuth();
@@ -151,6 +153,18 @@ const UserNav: React.FC<{ className?: string }> = ({ className }) => {
 
     return () => window.clearTimeout(timeoutId);
   }, [profileMessage]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const refreshCredits = () => {
+      getCreditBalance()
+        .then((balance) => setAvailableCredits(balance?.available_points ?? null))
+        .catch(() => {});
+    };
+    window.addEventListener('focus', refreshCredits);
+    return () => window.removeEventListener('focus', refreshCredits);
+  }, [isAuthenticated]);
 
   const getRemainingDays = () => {
     if (!expiresAt) return null;
@@ -244,6 +258,39 @@ const UserNav: React.FC<{ className?: string }> = ({ className }) => {
       setProfileMessage(error instanceof Error ? error.message : '保存失败');
     } finally {
       setIsSavingProfile(false);
+    }
+  };
+
+  const openCheckout = async (packId: 'starter' | 'value') => {
+    if (openingPackId) return;
+    const checkoutWindow = window.open('about:blank', '_blank');
+    if (!checkoutWindow) {
+      setPaymentMessage('浏览器阻止了付款窗口，请允许弹出窗口后重试');
+      return;
+    }
+    checkoutWindow.opener = null;
+    setOpeningPackId(packId);
+    setPaymentMessage('');
+
+    try {
+      const authHeaders = await getInviteAuthHeaders();
+      const response = await fetch('/api/payments/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
+        body: JSON.stringify({ packId }),
+      });
+      const data = await response.json() as { checkoutUrl?: string; error?: string };
+      if (!response.ok || !data.checkoutUrl) {
+        throw new Error(data.error || '付款页面创建失败');
+      }
+
+      checkoutWindow.location.replace(data.checkoutUrl);
+      setPaymentMessage('付款页面已在新标签页打开，支付成功后积分会自动到账');
+    } catch (error) {
+      checkoutWindow.close();
+      setPaymentMessage(error instanceof Error ? error.message : '付款服务暂不可用');
+    } finally {
+      setOpeningPackId(null);
     }
   };
 
@@ -378,6 +425,38 @@ const UserNav: React.FC<{ className?: string }> = ({ className }) => {
                   {availableCredits ?? '未知'}
                 </span>
               </div>
+            </div>
+
+            <div className="mt-4">
+              <div className="mb-2 flex items-center gap-2 text-sm font-medium text-gray-200">
+                <CreditCard className="h-4 w-4" />
+                充值积分
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                {([
+                  { id: 'starter' as const, price: '$1', credits: 100 },
+                  { id: 'value' as const, price: '$10', credits: 1000 },
+                ]).map((pack) => (
+                  <button
+                    key={pack.id}
+                    type="button"
+                    disabled={openingPackId !== null}
+                    onClick={() => openCheckout(pack.id)}
+                    className="rounded-2xl border border-white/15 bg-white/[0.06] px-4 py-3 text-left transition-colors hover:border-emerald-300/40 hover:bg-emerald-300/10 disabled:cursor-wait disabled:opacity-60"
+                  >
+                    <span className="flex items-center justify-between text-sm font-semibold text-white">
+                      {pack.price}
+                      {openingPackId === pack.id && <Loader2 className="h-4 w-4 animate-spin" />}
+                    </span>
+                    <span className="mt-1 block text-xs text-emerald-300">{pack.credits} 积分</span>
+                  </button>
+                ))}
+              </div>
+              {paymentMessage && (
+                <p className={`mt-2 text-xs ${paymentMessage.includes('已在新标签页') ? 'text-emerald-300' : 'text-red-300'}`}>
+                  {paymentMessage}
+                </p>
+              )}
             </div>
 
             {profileMessage && (
