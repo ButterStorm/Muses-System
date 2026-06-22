@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createRateLimiter } from '@/lib/rateLimit';
+import { createPersistentRateLimiter } from '@/lib/rateLimit';
 
 const DEFAULT_ALLOWED_HOSTS = new Set([
   'cdn1.suno.ai',
@@ -8,7 +8,11 @@ const DEFAULT_ALLOWED_HOSTS = new Set([
   'audiopipe.suno.ai',
 ]);
 const MEDIA_PROXY_MAX_BYTES = 5 * 1024 * 1024;
-const mediaProxyLimiter = createRateLimiter({ limit: 60, windowMs: 60_000 });
+const mediaProxyLimiter = createPersistentRateLimiter({
+  limit: 60,
+  windowMs: 60_000,
+  prefix: 'media-proxy',
+});
 
 export async function GET(request: NextRequest) {
   const rawUrl = request.nextUrl.searchParams.get('url');
@@ -31,7 +35,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: '不允许代理该域名' }, { status: 403 });
   }
 
-  const rateLimit = mediaProxyLimiter.check(getClientIp(request));
+  const rateLimit = await mediaProxyLimiter.check(getClientIp(request));
   if (!rateLimit.allowed) {
     return NextResponse.json(
       { error: '请求过于频繁，请稍后重试' },

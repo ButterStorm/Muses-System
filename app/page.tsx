@@ -9,7 +9,8 @@ import { useAuthStore } from '@/stores/authStore';
 import ColorBends from '@/components/ColorBends';
 import Galaxy from '@/components/Galaxy';
 import { getCreditBalance } from '@/services/CreditService';
-import { uploadImage } from '@/lib/storage';
+import { getUserProfile, updateUserProfile } from '@/lib/profile';
+import { useModalFocus } from '@/hooks/useModalFocus';
 
 const translations = {
   en: {
@@ -91,6 +92,7 @@ const UserNav: React.FC<{ className?: string }> = ({ className }) => {
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [openingPackId, setOpeningPackId] = useState<'starter' | 'value' | null>(null);
   const [paymentMessage, setPaymentMessage] = useState('');
+  const profileDialogRef = useModalFocus<HTMLFormElement>(isOpen, () => setIsOpen(false));
 
   useEffect(() => {
     checkAuth();
@@ -348,12 +350,17 @@ const UserNav: React.FC<{ className?: string }> = ({ className }) => {
             onClick={() => setIsOpen(false)}
           />
           <form
+            ref={profileDialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="profile-dialog-title"
+            tabIndex={-1}
             onSubmit={saveProfile}
             className="relative w-full max-w-md overflow-hidden rounded-3xl border border-white/15 bg-zinc-950/95 p-6 text-white shadow-2xl shadow-black/50"
           >
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h2 className="text-xl font-semibold">个人资料</h2>
+                <h2 id="profile-dialog-title" className="text-xl font-semibold">个人资料</h2>
                 <p className="mt-1 text-sm text-gray-400">{user?.email}</p>
               </div>
               <button
@@ -500,65 +507,6 @@ const UserNav: React.FC<{ className?: string }> = ({ className }) => {
     </div>
   );
 };
-
-type ProfileRow = {
-  display_name: string | null;
-  avatar_url: string | null;
-};
-
-async function getUserProfile(userId: string): Promise<ProfileRow | null> {
-  const { supabase } = await import('@/lib/supabase');
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('display_name, avatar_url')
-    .eq('user_id', userId)
-    .maybeSingle();
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  return data;
-}
-
-async function updateUserProfile({
-  userId,
-  displayName,
-  currentAvatarUrl,
-  avatarFile,
-}: {
-  userId: string;
-  displayName: string;
-  currentAvatarUrl: string;
-  avatarFile: File | null;
-}): Promise<ProfileRow> {
-  const { supabase } = await import('@/lib/supabase');
-  let avatarUrl = currentAvatarUrl;
-
-  if (avatarFile) {
-    avatarUrl = await uploadImage(avatarFile);
-  }
-
-  const { data, error } = await supabase
-    .from('profiles')
-    .update({
-      display_name: displayName || null,
-      avatar_url: avatarUrl || null,
-    })
-    .eq('user_id', userId)
-    .select('display_name, avatar_url')
-    .maybeSingle();
-
-  if (error) {
-    throw new Error(error.message || '资料保存失败');
-  }
-
-  if (!data) {
-    throw new Error('资料不存在，请确认 profiles 初始化完成');
-  }
-
-  return data;
-}
 
 async function getInviteAuthHeaders(): Promise<Record<string, string>> {
   const { supabase } = await import('@/lib/supabase');

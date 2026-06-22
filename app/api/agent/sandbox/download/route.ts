@@ -3,17 +3,21 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getRequiredSandboxRuntime } from '@/lib/agents/runtime/manager';
 import { assertSafeSandboxPath, getDownloadContentType } from '@/lib/agents/sandbox/files';
 import { CreditBillingError, getAuthenticatedUserId } from '@/lib/credits';
-import { createRateLimiter } from '@/lib/rateLimit';
+import { createPersistentRateLimiter } from '@/lib/rateLimit';
 
 export const runtime = 'nodejs';
-const sandboxDownloadLimiter = createRateLimiter({ limit: 30, windowMs: 60 * 1000 });
+const sandboxDownloadLimiter = createPersistentRateLimiter({
+  limit: 30,
+  windowMs: 60 * 1000,
+  prefix: 'sandbox-download',
+});
 
 export async function GET(request: NextRequest) {
   try {
     const url = new URL(request.url);
     const safePath = assertSafeSandboxPath(url.searchParams.get('path') || '');
     const userId = await getAuthenticatedUserId(request);
-    const rateLimit = sandboxDownloadLimiter.check(getSandboxRateLimitKey(request, userId));
+    const rateLimit = await sandboxDownloadLimiter.check(getSandboxRateLimitKey(request, userId));
     if (!rateLimit.allowed) {
       return NextResponse.json(
         { error: '请求过于频繁' },

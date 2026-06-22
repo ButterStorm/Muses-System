@@ -1,4 +1,4 @@
-import { after, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { verifyWebhook, WebhookEventType, type WebhookEventData } from '@waffo/pancake-ts';
 import { getServerSupabaseClient } from '@/lib/credits';
 import {
@@ -53,28 +53,32 @@ export async function POST(request: Request) {
   }
 
   const payload = JSON.parse(rawBody);
-  after(async () => {
-    for (let attempt = 1; attempt <= 3; attempt += 1) {
-      const supabase = getServerSupabaseClient();
-      const { error } = await supabase.from('waffo_payment_events').insert({
-        delivery_id: event.id,
-        event_id: event.eventId,
-        order_id: event.data.orderId,
-        user_id: userId,
-        pack_id: pack.id,
-        points: pack.credits,
-        amount: pack.amount,
-        currency: pack.currency,
-        payload,
-      });
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    const supabase = getServerSupabaseClient();
+    const { error } = await supabase.from('waffo_payment_events').insert({
+      delivery_id: event.id,
+      event_id: event.eventId,
+      order_id: event.data.orderId,
+      user_id: userId,
+      pack_id: pack.id,
+      points: pack.credits,
+      amount: pack.amount,
+      currency: pack.currency,
+      payload,
+    });
 
-      if (!error || error.code === '23505') return;
-      console.error(`[Waffo Webhook] Credit fulfillment attempt ${attempt} failed:`, error);
-      if (attempt < 3) {
-        await new Promise((resolve) => setTimeout(resolve, attempt * 500));
-      }
+    if (!error || error.code === '23505') {
+      return new NextResponse('OK', { status: 200 });
     }
-  });
 
-  return new NextResponse('OK', { status: 200 });
+    console.error(`[Waffo Webhook] Credit fulfillment attempt ${attempt} failed:`, error);
+    if (attempt < 3) {
+      await new Promise((resolve) => setTimeout(resolve, attempt * 500));
+    }
+  }
+
+  return new NextResponse('Credit fulfillment failed', {
+    status: 503,
+    headers: { 'Retry-After': '5' },
+  });
 }

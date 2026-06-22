@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { useModalFocus } from '@/hooks/useModalFocus';
 
 interface TextModalProps {
   isOpen: boolean;
@@ -23,6 +24,7 @@ const TextModal: React.FC<TextModalProps> = ({
   const [isEditing, setIsEditing] = useState(false);
   const [editedContent, setEditedContent] = useState(content);
   const [showPreview, setShowPreview] = useState(false);
+  const dialogRef = useModalFocus<HTMLDivElement>(isOpen, onClose);
 
   useEffect(() => {
     setEditedContent(content);
@@ -66,9 +68,16 @@ const TextModal: React.FC<TextModalProps> = ({
 
   return createPortal(
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[99999] p-4 sm:p-6 md:p-8">
-      <div className="bg-white shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col rounded-3xl overflow-hidden border border-white/20">
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="text-modal-title"
+        tabIndex={-1}
+        className="bg-white shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col rounded-3xl overflow-hidden border border-white/20"
+      >
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
+          <h2 id="text-modal-title" className="text-lg font-semibold text-gray-900">{title}</h2>
           <div className="flex items-center space-x-2">
             {isEditing && (
               <button
@@ -100,6 +109,7 @@ const TextModal: React.FC<TextModalProps> = ({
             </button>
             <button
               onClick={onClose}
+              aria-label="关闭文本窗口"
               className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

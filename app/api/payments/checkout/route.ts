@@ -1,15 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { WaffoPancakeError } from '@waffo/pancake-ts';
 import { CreditBillingError, getAuthenticatedUserId, getServerSupabaseClient } from '@/lib/credits';
-import { createRateLimiter } from '@/lib/rateLimit';
+import { createPersistentRateLimiter } from '@/lib/rateLimit';
 import { getWaffoClient, isWaffoCreditPackId, WAFFO_CREDIT_PACKS } from '@/lib/waffo';
 
-const checkoutLimiter = createRateLimiter({ limit: 10, windowMs: 10 * 60 * 1000 });
+const checkoutLimiter = createPersistentRateLimiter({
+  limit: 10,
+  windowMs: 10 * 60 * 1000,
+  prefix: 'payments:checkout',
+});
 
 export async function POST(request: NextRequest) {
   try {
     const userId = await getAuthenticatedUserId(request);
-    const rateLimit = checkoutLimiter.check(userId);
+    const rateLimit = await checkoutLimiter.check(userId);
     if (!rateLimit.allowed) {
       return NextResponse.json(
         { error: '创建付款页面过于频繁，请稍后再试' },

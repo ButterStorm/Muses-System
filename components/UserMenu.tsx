@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
 import { User, LogOut, LayoutDashboard, Loader2, KeyRound } from 'lucide-react';
 import { getCreditBalance } from '@/services/CreditService';
+import { getUserProfile } from '@/lib/profile';
 
 export default function UserMenu() {
   const router = useRouter();
@@ -147,24 +148,4 @@ export default function UserMenu() {
       )}
     </div>
   );
-}
-
-type ProfileRow = {
-  display_name: string | null;
-  avatar_url: string | null;
-};
-
-async function getUserProfile(userId: string): Promise<ProfileRow | null> {
-  const { supabase } = await import('@/lib/supabase');
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('display_name, avatar_url')
-    .eq('user_id', userId)
-    .maybeSingle();
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  return data;
 }

@@ -1,5 +1,16 @@
 /** @jest-environment node */
 
+jest.mock('@/lib/rateLimit', () => {
+  const actual = jest.requireActual('@/lib/rateLimit');
+  return {
+    ...actual,
+    createPersistentRateLimiter: ({ limit, windowMs }: { limit: number; windowMs: number }) => {
+      const limiter = actual.createRateLimiter({ limit, windowMs });
+      return { check: async (key: string) => limiter.check(key) };
+    },
+  };
+});
+
 import { GET as downloadFile } from '@/app/api/agent/sandbox/download/route';
 import { GET as listFiles } from '@/app/api/agent/sandbox/files/route';
 import { getRequiredSandboxRuntime } from '@/lib/agents/runtime/manager';
@@ -10,6 +21,7 @@ jest.mock('@/lib/agents/runtime/manager', () => ({
 }));
 
 jest.mock('@/lib/credits', () => ({
+  CreditBillingError: class CreditBillingError extends Error {},
   getAuthenticatedUserId: jest.fn(),
 }));
 

@@ -1,5 +1,11 @@
 /** @jest-environment node */
 
+jest.mock('@/lib/rateLimit', () => ({
+  createPersistentRateLimiter: () => ({
+    check: async () => ({ allowed: true, remaining: 7, retryAfterMs: 600_000 }),
+  }),
+}));
+
 process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://example.supabase.co';
 process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-key';
 

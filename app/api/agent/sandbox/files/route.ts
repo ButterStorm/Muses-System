@@ -2,17 +2,21 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getRequiredSandboxRuntime } from '@/lib/agents/runtime/manager';
 import { assertSafeSandboxPath } from '@/lib/agents/sandbox/files';
 import { CreditBillingError, getAuthenticatedUserId } from '@/lib/credits';
-import { createRateLimiter } from '@/lib/rateLimit';
+import { createPersistentRateLimiter } from '@/lib/rateLimit';
 
 export const runtime = 'nodejs';
-const sandboxFilesLimiter = createRateLimiter({ limit: 30, windowMs: 60 * 1000 });
+const sandboxFilesLimiter = createPersistentRateLimiter({
+  limit: 30,
+  windowMs: 60 * 1000,
+  prefix: 'sandbox-files',
+});
 
 export async function GET(request: NextRequest) {
   try {
     const url = new URL(request.url);
     const path = assertSafeSandboxPath(url.searchParams.get('path') || '/home/user/musesAOS');
     const userId = await getAuthenticatedUserId(request);
-    const rateLimit = sandboxFilesLimiter.check(getSandboxRateLimitKey(request, userId));
+    const rateLimit = await sandboxFilesLimiter.check(getSandboxRateLimitKey(request, userId));
     if (!rateLimit.allowed) {
       return NextResponse.json(
         { error: '请求过于频繁' },

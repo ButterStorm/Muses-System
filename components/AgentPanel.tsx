@@ -6,6 +6,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { agentService } from '@/services/agentService';
 import { useAuthStore } from '@/stores/authStore';
+import { useModalFocus } from '@/hooks/useModalFocus';
 
 interface Message {
   id: string;
@@ -586,6 +587,7 @@ function SandboxPowerConfirmDialog({
   onCancel: () => void;
   onConfirm: () => void;
 }) {
+  const dialogRef = useModalFocus<HTMLDivElement>(true, onCancel);
   const isOpenAction = action === 'open';
   const title = busy && isOpenAction
     ? '正在开启沙箱...'
@@ -596,9 +598,11 @@ function SandboxPowerConfirmDialog({
   return (
     <div className="absolute inset-0 z-[60] flex items-center justify-center bg-black/30 px-4 backdrop-blur-sm">
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="sandbox-power-dialog-title"
+        tabIndex={-1}
         className="w-full max-w-sm rounded-2xl border border-gray-200 bg-white p-4 shadow-2xl"
       >
         <div className="flex items-start gap-3">

@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createRateLimiter } from '@/lib/rateLimit';
+import { createPersistentRateLimiter } from '@/lib/rateLimit';
 import { CreditBillingError, getAuthenticatedUserId, getServerSupabaseClient } from '@/lib/credits';
 
-const inviteCodeLimiter = createRateLimiter({ limit: 8, windowMs: 10 * 60 * 1000 });
+const inviteCodeLimiter = createPersistentRateLimiter({
+  limit: 8,
+  windowMs: 10 * 60 * 1000,
+  prefix: 'invite-code',
+});
 const INVITE_ACTIVATION_CREDITS = 1000;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -18,7 +22,7 @@ export async function POST(request: NextRequest) {
 
       const forwardedFor = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim();
       const clientKey = `${forwardedFor || 'local'}:${body.userId}`;
-      const rateLimit = inviteCodeLimiter.check(clientKey);
+      const rateLimit = await inviteCodeLimiter.check(clientKey);
       if (!rateLimit.allowed) {
         return NextResponse.json(
           { error: '尝试次数过多，请稍后再试' },
@@ -60,7 +64,7 @@ export async function POST(request: NextRequest) {
 
     const forwardedFor = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim();
     const clientKey = `${forwardedFor || 'local'}:${userId}`;
-    const rateLimit = inviteCodeLimiter.check(clientKey);
+    const rateLimit = await inviteCodeLimiter.check(clientKey);
     if (!rateLimit.allowed) {
       return NextResponse.json(
         { error: '尝试次数过多，请稍后再试' },

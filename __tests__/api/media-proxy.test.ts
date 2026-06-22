@@ -1,5 +1,16 @@
 /** @jest-environment node */
 
+jest.mock('@/lib/rateLimit', () => {
+  const actual = jest.requireActual('@/lib/rateLimit');
+  return {
+    ...actual,
+    createPersistentRateLimiter: ({ limit, windowMs }: { limit: number; windowMs: number }) => {
+      const limiter = actual.createRateLimiter({ limit, windowMs });
+      return { check: async (key: string) => limiter.check(key) };
+    },
+  };
+});
+
 import { NextRequest } from 'next/server';
 
 const fetchMock = jest.fn();
